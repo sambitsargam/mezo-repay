@@ -2,7 +2,7 @@
 
 Ordered by what most increases real usefulness. None of this is built yet.
 
-1. **Hosted keeper with public status.** An always-on keeper with redundancy, wired to the app's
+1. **Hosted keeper with public status (next wave).** An always-on keeper with redundancy, wired to the app's
    Automation page through `NEXT_PUBLIC_KEEPER_STATUS_URL`, plus an optional bounded keeper tip
    funded by the owner (capped per execution, enforced on-chain).
 2. **Owner-approved auto-close.** A policy flag that lets keepers close the loan when the account

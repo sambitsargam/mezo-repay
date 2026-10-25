@@ -56,7 +56,7 @@ borrowing MUSD against BTC.
 - Real end-to-end run on testnet: account → Trove → customer payments (approve and permit) → keeper
   repayments → debt 2,202 → 2,000 MUSD → rejected unauthorized action. See `docs/EVIDENCE.md`.
 - Web app: https://mezo-repay.vercel.app (hosted on Vercel, opened and checked).
-- Keeper: run live on demand; no always-on public instance.
+- Keeper: run live on demand; no always-on public instance yet. Hosting it with public status is planned for the next wave.
 
 ## Demo video
 
@@ -76,7 +76,7 @@ Next.js 14, Tailwind CSS, wagmi 2, viem 2, TanStack Query 5, Radix UI, Playwrigh
 
 ## Three concrete future milestones
 
-1. Hosted, redundant keeper with public status and an optional owner-funded, capped keeper tip.
+1. Next wave: hosted, redundant keeper with public status and an optional owner-funded, capped keeper tip.
 2. Owner-approved auto-close so income can retire the final minimum-debt tranche.
 3. Invoice records with partial-payment tracking and accounting exports; then an audit before mainnet.
 

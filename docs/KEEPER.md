@@ -79,7 +79,7 @@ deployment block). Put the status port behind HTTPS if exposing it to the browse
 
 The keeper has been run live with `--once` against Mezo testnet twice. Both runs executed real
 repayments (`docs/EVIDENCE.md` steps `keeper-execute` and `keeper-execute-capped`). No always-on
-public keeper instance is hosted, so the deployed app shows automation as **Not configured**.
+public keeper instance is hosted yet, so the deployed app shows automation as **Not configured**. Hosting it is planned for the next wave.
 
 ## Limitations
 
