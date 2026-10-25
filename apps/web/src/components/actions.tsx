@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
-import { type AccountSnapshot, type ProtocolParams, REPAYMENT_STATUS_COPY, closeAmount, collateralRatio, formatRatio, repayAccountAbi } from "@repay/sdk";
+import { useAccount } from "wagmi";
+import { type AccountSnapshot, type ProtocolParams, REPAYMENT_STATUS_COPY, closeAmount, collateralRatio, formatRatio, parseUnits18, repayAccountAbi } from "@repay/sdk";
+import { AmountInput } from "./PolicyForm";
 import { TxDialog } from "./TxDialog";
-import { Amount, KeyValue, Notice } from "./ui";
+import { Amount, Card, CardHeader, KeyValue, Notice } from "./ui";
 
 /** Execute the automated repayment now. Anyone may call it; the contract computes the amount. */
 export function ExecuteRepaymentButton({ snap, params, className = "btn-accent" }: { snap: AccountSnapshot; params?: ProtocolParams; className?: string }) {
@@ -79,5 +81,40 @@ export function CloseLoanButton({ snap, params }: { snap: AccountSnapshot; param
         successMessage="Loan closed. Collateral is now held by the account; withdraw it from the Loan page."
       />
     </>
+  );
+}
+
+export function WithdrawOperatingCard({ snap }: { snap: AccountSnapshot }) {
+  const { address: wallet } = useAccount();
+  const [amount, setAmount] = useState("");
+  const [open, setOpen] = useState(false);
+  const amt = parseUnits18(amount);
+  const error = amount && amt === null ? "Enter a number." : amt !== null && amt > snap.operatingCash ? "More than available operating cash." : null;
+  const valid = amt !== null && amt > 0n && !error && !!wallet;
+  const belowReserve = amt !== null && snap.operatingCash - (amt > snap.operatingCash ? snap.operatingCash : amt) < snap.policy.operatingReserve;
+  return (
+    <Card>
+      <CardHeader title="Withdraw operating cash" description="Send MUSD from the account to your wallet" />
+      <div className="space-y-3 p-5">
+        <p className="text-sm">
+          Available: <Amount value={snap.operatingCash} className="font-semibold" />{" "}
+          <span className="text-ink-muted">· pending repayment is not withdrawable here</span>
+        </p>
+        <AmountInput id="withdraw" value={amount} onChange={setAmount} placeholder="0" error={error ?? undefined} ariaLabel="Amount to withdraw" />
+        <button className="btn-secondary" disabled={!valid} onClick={() => setOpen(true)}>
+          Review withdrawal
+        </button>
+      </div>
+      <TxDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Withdraw operating cash"
+        confirmLabel="Withdraw"
+        request={valid ? { address: snap.address, abi: repayAccountAbi, functionName: "withdrawOperating", args: [wallet!, amt!] } : null}
+        summary={<KeyValue rows={[["Amount", <Amount key="a" value={amt ?? 0n} />], ["To", "Your connected wallet"], ["Pending repayment", "Unchanged"]]} />}
+        warning={belowReserve ? <Notice tone="warning">This takes operating cash below your reserve, so automated repayment will wait until it recovers.</Notice> : undefined}
+        successMessage="Withdrawn to your wallet."
+      />
+    </Card>
   );
 }
