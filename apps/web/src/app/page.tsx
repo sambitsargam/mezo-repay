@@ -9,12 +9,12 @@ const REPO = "https://github.com/sambitsargam/mezo-repay";
 function Preview() {
   // Static illustration with round numbers; labeled, not presented as anyone's data.
   return (
-    <figure className="card relative overflow-hidden p-5 shadow-lift sm:p-6" aria-label="Illustration of how a 500 MUSD payment is split">
+    <figure className="card relative overflow-hidden p-5 shadow-lift transition-transform duration-500 hover:-rotate-[0.4deg] hover:scale-[1.01] sm:p-6" aria-label="Illustration of how a 500 MUSD payment is split">
       <div className="flex items-center justify-between">
         <span className="eyebrow">Illustration</span>
         <span className="rounded-full border border-line bg-ivory px-2.5 py-1 text-[11px] font-medium text-ink-muted">30% to repayment</span>
       </div>
-      <div className="mt-5 flex items-center gap-3 rounded-xl border border-line bg-ivory px-4 py-3">
+      <div className="hero-pay mt-5 flex items-center gap-3 rounded-xl border border-line bg-ivory px-4 py-3">
         <span className="rounded-lg bg-sage-wash p-2 text-sage-deep">
           <ArrowDownLeft className="h-4 w-4" aria-hidden />
         </span>
@@ -25,10 +25,12 @@ function Preview() {
         <span className="num text-lg font-semibold text-ink">500.00</span>
       </div>
       <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-ivory-deep" aria-hidden>
-        <div className="w-[30%] bg-copper" />
-        <div className="flex-1 bg-sage/60" />
+        <div className="hero-bar flex w-full">
+          <div className="flow-stripes w-[30%] bg-copper" />
+          <div className="flex-1 bg-sage/60" />
+        </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="hero-split mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-copper/25 bg-copper-wash/60 px-3 py-2.5">
           <p className="text-xs font-medium text-copper-deep">To loan repayment</p>
           <p className="num mt-0.5 font-semibold">150.00 <span className="text-xs text-ink-muted">MUSD</span></p>
@@ -38,11 +40,15 @@ function Preview() {
           <p className="num mt-0.5 font-semibold">350.00 <span className="text-xs text-ink-muted">MUSD</span></p>
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-3 rounded-xl border border-line px-4 py-3">
-        <span className="rounded-lg bg-copper-wash p-2 text-copper-deep">
+      <div className="hero-repay mt-4 flex items-center gap-3 rounded-xl border border-line px-4 py-3">
+        <span className="relative rounded-lg bg-copper-wash p-2 text-copper-deep">
           <Repeat className="h-4 w-4" aria-hidden />
+          <span className="hero-check absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sage text-[9px] font-bold text-white" aria-hidden>✓</span>
         </span>
-        <p className="min-w-0 flex-1 text-sm text-ink">Repayment executed against the Mezo loan</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-ink">Repayment executed against the Mezo loan</p>
+          <p className="text-xs text-ink-muted">Loan debt 2,202.00 → 2,052.00 MUSD</p>
+        </div>
         <span className="num text-sm font-medium text-ink">−150.00</span>
       </div>
       <figcaption className="mt-4 text-xs text-ink-muted">Illustrative numbers. Explore the example to see a full account.</figcaption>
@@ -83,13 +89,13 @@ export default function Home() {
             <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-soft">
               <span className="h-1.5 w-1.5 rounded-full bg-copper" aria-hidden /> Live on Mezo Testnet
             </span>
-            <h1 className="mt-5 font-display text-[40px] leading-[1.05] tracking-tight text-ink sm:text-[56px]">Let your income pay down your Bitcoin loan.</h1>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-soft">
+            <h1 className="animate-rise mt-5 font-display text-[40px] leading-[1.05] tracking-tight text-ink sm:text-[56px]">Let your income pay down your Bitcoin loan.</h1>
+            <p style={{ ["--i" as string]: 1 }} className="animate-rise mt-5 max-w-xl text-lg leading-relaxed text-ink-soft">
               Receive MUSD, keep your operating cash, and automatically direct a chosen share toward your Mezo loan.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/app" className="btn-accent px-5 text-[15px]">
-                Launch app <ArrowRight className="h-4 w-4" aria-hidden />
+              <Link href="/app" className="btn-accent group px-5 text-[15px] shadow-card hover:shadow-lift">
+                Launch app <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
               </Link>
               <Link href="/example" className="btn-secondary px-5 text-[15px]">Explore example</Link>
             </div>
@@ -104,7 +110,7 @@ export default function Home() {
             <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight text-ink">Ordinary business income, flowing into real repayment of Mezo borrowing.</h2>
             <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {STEPS.map(({ icon: Icon, title, body }, i) => (
-                <li key={title} className="card p-5">
+                <li key={title} className="card card-interactive animate-rise p-5" style={{ ["--i" as string]: i }}>
                   <div className="flex items-center gap-2">
                     <span className="num text-xs font-semibold text-copper-deep">0{i + 1}</span>
                     <Icon className="h-4 w-4 text-ink-muted" aria-hidden />
@@ -140,7 +146,7 @@ export default function Home() {
                 Not just a payment link, a subscription biller, a liquidation alert bot or a yield vault. RePay does one thing: it turns a chosen share of
                 real customer income into real repayment of the loan your account owns.
               </p>
-              <div className="mt-6 card p-5">
+              <div className="card card-interactive mt-6 p-5">
                 <p className="flex items-center gap-2 text-sm font-semibold text-ink">
                   <ShieldCheck className="h-4 w-4 text-sage-deep" aria-hidden /> You stay in control
                 </p>

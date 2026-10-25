@@ -16,17 +16,17 @@ export function AllocationFlow({ amount, bps, caption, compact }: { amount: bigi
         <ArrowRight className={cx("mx-auto h-4 w-4 text-ink-muted", compact ? "rotate-90" : "rotate-90 sm:rotate-0")} aria-hidden />
         <div className="space-y-2">
           <div className="flex h-3 overflow-hidden rounded-full bg-ivory-deep" role="img" aria-label={`${formatBps(bps)} to repayment, ${formatBps(10000 - bps)} to operating cash`}>
-            <div className="h-full bg-copper transition-[width] duration-300" style={{ width: `${pct}%` }} />
-            <div className="h-full flex-1 bg-sage/60" />
+            <div className="animate-grow flow-stripes h-full bg-copper transition-[width] duration-500" style={{ width: `${pct}%` }} />
+            <div className="animate-grow h-full flex-1 bg-sage/60" style={{ ["--i" as string]: 1 }} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-copper/25 bg-copper-wash/60 px-3 py-2.5">
+            <div className="card-interactive rounded-xl border border-copper/25 bg-copper-wash/60 px-3 py-2.5">
               <p className="flex items-center gap-1.5 text-xs font-medium text-copper-deep">
                 <span className="h-2 w-2 rounded-sm bg-copper" aria-hidden /> Repayment · {formatBps(bps)}
               </p>
               <Amount value={toRepayment} className="mt-0.5 block font-semibold" />
             </div>
-            <div className="rounded-xl border border-sage/30 bg-sage-wash/70 px-3 py-2.5">
+            <div className="card-interactive rounded-xl border border-sage/30 bg-sage-wash/70 px-3 py-2.5">
               <p className="flex items-center gap-1.5 text-xs font-medium text-sage-deep">
                 <span className="h-2 w-2 rounded-sm bg-sage" aria-hidden /> Operating cash · {formatBps(10000 - bps)}
               </p>

@@ -167,3 +167,17 @@ test.describe("live mode with a wallet", () => {
     if ((await btn.getAttribute("title")) !== null) await expect(btn).toBeDisabled();
   });
 });
+
+test.describe("motion", () => {
+  test("reduced motion keeps every element fully visible", async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await page.goto("/example");
+    await expect(page.getByText("2,006.41").first()).toBeVisible();
+    const minOpacity = await page.evaluate(() =>
+      Math.min(...[...document.querySelectorAll(".animate-rise, .animate-page, .card")].map((e) => Number(getComputedStyle(e).opacity))),
+    );
+    expect(minOpacity).toBe(1);
+    await ctx.close();
+  });
+});

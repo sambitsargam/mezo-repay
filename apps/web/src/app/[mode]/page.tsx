@@ -9,6 +9,7 @@ import { AllocationFlow } from "@/components/AllocationFlow";
 import { ActivityRow, NoActivity } from "@/components/activity";
 import { ExecuteRepaymentButton } from "@/components/actions";
 import { Amount, Card, CardHeader, DataError, Notice, PageHeader, Pill, Skeleton, Stat, AddressLink } from "@/components/ui";
+import { CountUp, DebtProgress, LiveIndicator, RatioGauge } from "@/components/motion";
 
 export default function DashboardPage() {
   return (
@@ -53,7 +54,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="animate-rise">
+    <div>
       <PageHeader
         title="Overview"
         description={
@@ -97,30 +98,45 @@ function Dashboard() {
       )}
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <Card className="p-5 xl:col-span-2">
+        <Card className="animate-rise p-5 xl:col-span-2" style={{ ["--i" as string]: 0 }}>
+          <div className="-mt-1 mb-4 flex justify-end">
+            <LiveIndicator updatedAt={snap.updatedAt} />
+          </div>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-6 min-[420px]:grid-cols-2 sm:grid-cols-3">
             <Stat label="Outstanding debt" emphasis sub={hasLoan ? "Includes accrued interest" : TROVE_STATUS_LABEL[s.loanStatus]}>
-              <Amount value={hasLoan ? s.debt : 0n} />
+              <CountUp value={hasLoan ? s.debt : 0n} />
             </Stat>
             <Stat label="Collateral ratio" emphasis sub={<Amount value={s.collateral} unit="BTC" digits={6} />}>
               <span className="num">{hasLoan ? (p ? formatRatio(cr) : <Skeleton className="h-7 w-20" />) : "—"}</span>
             </Stat>
             <Stat label="Pending repayment" emphasis sub={status.title}>
-              <Amount value={s.pendingRepayment} className="text-copper-deep" />
+              <CountUp value={s.pendingRepayment} className="text-copper-deep" />
             </Stat>
             <Stat label="Operating cash" sub={s.policy.operatingReserve > 0n ? <>Reserve <Amount value={s.policy.operatingReserve} /></> : "No reserve set"}>
-              <Amount value={s.operatingCash} />
+              <CountUp value={s.operatingCash} />
             </Stat>
             <Stat label="Tracked income" sub={`${s.paymentCount} payment${s.paymentCount === 1 ? "" : "s"}`}>
-              <Amount value={s.totalIncome} />
+              <CountUp value={s.totalIncome} />
             </Stat>
             <Stat label="Total repaid" sub="Burned against the Trove">
-              <Amount value={s.totalRepaid} className="text-sage-deep" />
+              <CountUp value={s.totalRepaid} className="text-sage-deep" />
             </Stat>
           </dl>
+          {hasLoan && p && (
+            <div className="mt-6 grid gap-6 border-t border-line pt-5 md:grid-cols-2">
+              <div>
+                <p className="eyebrow mb-3">Collateral health</p>
+                <RatioGauge ratio={cr} mcr={p.mcr} ccr={p.ccr} />
+              </div>
+              <div>
+                <p className="eyebrow mb-3">Debt paydown</p>
+                <DebtProgress debt={s.debt} repaid={s.totalRepaid} floor={p.minNetDebt + p.gasCompensation} />
+              </div>
+            </div>
+          )}
         </Card>
 
-        <Card className="flex flex-col">
+        <Card className="animate-rise flex flex-col" style={{ ["--i" as string]: 1 }}>
           <CardHeader title="Next repayment" description="Read from the contract's own preview" />
           <div className="flex flex-1 flex-col gap-4 p-5">
             <div>
@@ -151,7 +167,7 @@ function Dashboard() {
         </Card>
       </div>
 
-      <Card className="mt-5">
+      <Card className="animate-rise mt-5" style={{ ["--i" as string]: 2 }}>
         <CardHeader title="How income is split" description="Every tracked payment is divided once, when it arrives. Repeated keeper runs never re-split it." />
         <div className="p-5">
           <AllocationFlow
@@ -166,7 +182,7 @@ function Dashboard() {
         </div>
       </Card>
 
-      <Card className="mt-5">
+      <Card className="animate-rise mt-5" style={{ ["--i" as string]: 3 }}>
         <CardHeader
           title="Recent activity"
           action={
@@ -188,8 +204,8 @@ function Dashboard() {
           <NoActivity />
         ) : (
           <ul className="divide-y divide-line">
-            {activity.data.slice(0, 6).map((i) => (
-              <ActivityRow key={`${i.txHash}-${i.logIndex}`} item={i} />
+            {activity.data.slice(0, 6).map((i, n) => (
+              <ActivityRow key={`${i.txHash}-${i.logIndex}`} item={i} index={n} />
             ))}
           </ul>
         )}

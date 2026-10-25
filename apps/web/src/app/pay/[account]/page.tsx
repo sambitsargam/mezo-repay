@@ -176,7 +176,7 @@ function PayFlow({ accountParam }: { accountParam: string }) {
 
       <Card className="p-5">
         <p className="eyebrow">Amount</p>
-        <Amount value={r.amount} className="mt-1 block font-display text-[40px] leading-none tracking-tight" />
+        <Amount value={r.amount} className="animate-rise mt-1 block font-display text-[40px] leading-none tracking-tight" />
         <div className="mt-5">
           <KeyValue
             rows={[
@@ -217,9 +217,9 @@ function PayFlow({ accountParam }: { accountParam: string }) {
       )}
 
       {receipt && paymentEvent ? (
-        <Card className="p-5" aria-live="polite">
+        <Card className="animate-rise border-sage/40 p-5" aria-live="polite">
           <div className="flex items-center gap-2 text-sage-deep">
-            <CheckCircle2 className="h-5 w-5" aria-hidden />
+            <CheckCircle2 className="animate-pop h-6 w-6" aria-hidden />
             <h2 className="text-lg font-semibold">Payment confirmed</h2>
           </div>
           <div className="mt-4">

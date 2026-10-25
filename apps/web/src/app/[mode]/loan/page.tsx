@@ -8,6 +8,7 @@ import { OpenLoanForm } from "@/components/OpenLoanForm";
 import { AmountInput } from "@/components/PolicyForm";
 import { TxDialog } from "@/components/TxDialog";
 import { CloseLoanButton, ExecuteRepaymentButton } from "@/components/actions";
+import { RatioGauge } from "@/components/motion";
 import { Amount, Card, CardHeader, DataError, KeyValue, Notice, PageHeader, Pill, Skeleton, Stat, cx } from "@/components/ui";
 
 export default function LoanPage() {
@@ -50,7 +51,7 @@ function Loan() {
 
       {active && (
         <>
-          <Card className="p-5">
+          <Card className="animate-rise p-5">
             <dl className="grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 md:grid-cols-4">
               <Stat label="Debt incl. interest" emphasis>
                 <Amount value={s.debt} />
@@ -65,6 +66,11 @@ function Loan() {
                 <Amount value={liq} unit="USD" />
               </Stat>
             </dl>
+            {p && (
+              <div className="mt-6 border-t border-line pt-5">
+                <RatioGauge ratio={cr} mcr={p.mcr} ccr={p.ccr} />
+              </div>
+            )}
           </Card>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">

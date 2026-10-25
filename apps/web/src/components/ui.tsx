@@ -115,7 +115,7 @@ export function Stat({ label, children, sub, emphasis }: { label: string; childr
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <span aria-hidden className={cx("inline-block animate-pulse rounded-md bg-ivory-deep", className ?? "h-5 w-24")} />;
+  return <span aria-hidden className={cx("skeleton inline-block rounded-md", className ?? "h-5 w-24")} />;
 }
 
 export function Spinner({ className }: { className?: string }) {

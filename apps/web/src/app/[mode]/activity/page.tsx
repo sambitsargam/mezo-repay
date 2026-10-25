@@ -73,8 +73,8 @@ function ActivityView() {
           <NoActivity />
         ) : (
           <ul className="divide-y divide-line" aria-label="Activity list">
-            {items.map((i) => (
-              <ActivityRow key={`${i.txHash}-${i.logIndex}`} item={i} />
+            {items.map((i, n) => (
+              <ActivityRow key={`${i.txHash}-${i.logIndex}`} item={i} index={n} />
             ))}
           </ul>
         )}

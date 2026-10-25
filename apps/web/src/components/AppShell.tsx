@@ -37,11 +37,12 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               className={cx(
-                "flex min-h-[40px] items-center gap-3 rounded-lg px-3 text-sm transition-colors",
-                active ? "bg-ink text-ivory" : "text-ink-soft hover:bg-ivory-deep hover:text-ink",
+                "group relative flex min-h-[40px] items-center gap-3 rounded-lg px-3 text-sm transition-all duration-200",
+                active ? "bg-ink text-ivory shadow-card" : "text-ink-soft hover:translate-x-0.5 hover:bg-ivory-deep hover:text-ink",
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden />
+              {active && <span className="animate-pop absolute -left-3 top-2 bottom-2 w-1 rounded-r-full bg-copper" aria-hidden />}
+              <Icon className={cx("h-4 w-4 shrink-0 transition-transform duration-200", !active && "group-hover:scale-110")} aria-hidden />
               {label}
             </Link>
           </li>
@@ -106,6 +107,34 @@ function ViewingBanner() {
         Stop viewing
       </button>
     </div>
+  );
+}
+
+const TABS = [NAV[0], NAV[1], NAV[3], NAV[4], NAV[5]];
+
+function BottomTabs() {
+  const mode = useMode();
+  const base = basePath(mode);
+  const path = usePathname();
+  return (
+    <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-ivory/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <ul className="grid grid-cols-5">
+        {TABS.map(({ href, label, icon: Icon }) => {
+          const full = base + href;
+          const active = href === "" ? path === base : path.startsWith(full);
+          return (
+            <li key={href}>
+              <Link href={full} aria-current={active ? "page" : undefined} className={cx("flex min-h-[56px] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors", active ? "text-copper-deep" : "text-ink-muted hover:text-ink")}>
+                <span className={cx("rounded-full px-3 py-1 transition-all duration-200", active ? "bg-copper-wash" : "")}>
+                  <Icon className={cx("h-[18px] w-[18px] transition-transform duration-200", active && "scale-110")} aria-hidden />
+                </span>
+                {label.split(" ")[0]}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
 
@@ -183,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <WalletButton compact />
             </div>
           </header>
-          <main id="main" className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <main id="main" className="px-4 pb-24 pt-6 sm:px-6 lg:px-8 lg:py-8">
             <div className="mb-4 sm:hidden">
               <NetworkBadge />
             </div>
@@ -191,6 +220,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <BottomTabs />
     </div>
   );
 }

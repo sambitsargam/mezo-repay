@@ -5,6 +5,7 @@ import type { TransactionReceipt } from "viem";
 import { type TxRequest, useTransaction, type TxPhase } from "@/lib/tx";
 import { useMode } from "@/lib/mode";
 import { Notice, Spinner, TxLink, cx } from "./ui";
+import { useToast } from "./toast";
 
 const STEPS: Array<{ key: TxPhase; label: string }> = [
   { key: "review", label: "Review" },
@@ -30,9 +31,13 @@ export function TxSteps({ phase }: { phase: TxPhase }) {
         const current = idx === i && phase !== "confirmed";
         return (
           <li key={s.key} className="min-w-0" aria-current={current ? "step" : undefined}>
-            <div className={cx("h-1 rounded-full", done ? "bg-sage" : current ? "bg-copper" : "bg-line")} />
+            <div className="h-1 overflow-hidden rounded-full bg-line">
+              <div
+                className={cx("h-full rounded-full transition-[width,background-color] duration-500", done ? "w-full bg-sage" : current ? "flow-stripes w-full bg-copper" : "w-0")}
+              />
+            </div>
             <p className={cx("mt-1.5 truncate text-[11px]", current ? "font-medium text-ink" : done ? "text-sage-deep" : "text-ink-muted")}>
-              {done && <Check className="mr-0.5 inline h-3 w-3" aria-hidden />}
+              {done && <Check className="animate-pop mr-0.5 inline h-3 w-3" aria-hidden />}
               {s.label}
             </p>
           </li>
@@ -59,7 +64,13 @@ export interface TxDialogProps {
 
 export function TxDialog(props: TxDialogProps) {
   const mode = useMode();
-  const tx = useTransaction({ onConfirmed: props.onConfirmed });
+  const toast = useToast();
+  const tx = useTransaction({
+    onConfirmed: (r) => {
+      toast({ title: `${props.title}: confirmed`, hash: r.transactionHash });
+      props.onConfirmed?.(r);
+    },
+  });
   const { phase, hash, error, replacedBy } = tx.state;
   const close = (o: boolean) => {
     if (!o && tx.busy) return; // keep the dialog while a transaction is in flight
@@ -72,7 +83,7 @@ export function TxDialog(props: TxDialogProps) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-ink/30 backdrop-blur-[1px]" />
         <Dialog.Content
-          className="fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-lift focus:outline-none sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6"
+          className="animate-toast fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-2xl border border-line bg-surface p-5 shadow-lift focus:outline-none sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6"
           onInteractOutside={(e) => tx.busy && e.preventDefault()}
         >
           <div className="flex items-start justify-between gap-4">
@@ -125,6 +136,7 @@ export function TxDialog(props: TxDialogProps) {
                 {error} {hash && <TxLink hash={hash} />}
               </Notice>
             )}
+            {done && <SuccessMark />}
             {done && (
               <Notice tone="positive" title="Confirmed on Mezo testnet">
                 {props.successMessage} <TxLink hash={hash} />
@@ -158,5 +170,16 @@ export function TxDialog(props: TxDialogProps) {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+function SuccessMark() {
+  return (
+    <div className="flex justify-center py-2" aria-hidden>
+      <svg viewBox="0 0 52 52" className="animate-pop h-14 w-14">
+        <circle cx="26" cy="26" r="24" fill="rgb(var(--sage-wash))" stroke="rgb(var(--sage))" strokeWidth="2" />
+        <path d="M15 27 l7 7 l15 -16" fill="none" stroke="rgb(var(--sage-deep))" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="animate-draw" style={{ ["--len" as string]: 40 }} />
+      </svg>
+    </div>
   );
 }

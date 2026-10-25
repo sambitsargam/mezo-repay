@@ -70,14 +70,14 @@ export function formatTime(ts: number | null): string {
   return new Date(ts * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-export function ActivityRow({ item, showAccount = false }: { item: ActivityItem; showAccount?: boolean }) {
+export function ActivityRow({ item, showAccount = false, index = 0 }: { item: ActivityItem; showAccount?: boolean; index?: number }) {
   const m = META[item.kind];
   const Icon = m.icon;
   const outflow = item.kind === "repayment" || item.kind === "withdrawal" || item.kind === "btcWithdrawal";
   const sub = subline(item);
   return (
-    <li className="flex items-start gap-3 px-5 py-3.5">
-      <span className={cx("mt-0.5 rounded-lg p-2", m.tone)} aria-hidden>
+    <li className="animate-rise flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-ivory/70" style={{ ["--i" as string]: Math.min(index, 8) }}>
+      <span className={cx("mt-0.5 rounded-lg p-2 transition-transform duration-200", m.tone)} aria-hidden>
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
