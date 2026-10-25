@@ -63,7 +63,7 @@ pnpm contracts:fork                  # full flow on a fork of real Mezo testnet 
 pnpm --filter @repay/sdk test        # 18 accounting/format/link tests
 pnpm --filter @repay/keeper test     # 6 keeper decision/config tests
 pnpm --filter @repay/web test        # 7 web unit tests
-pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 44 Playwright tests (desktop + mobile, uses installed Chrome)
+pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 46 Playwright tests (desktop + mobile, uses installed Chrome)
 pnpm typecheck && pnpm lint
 ```
 

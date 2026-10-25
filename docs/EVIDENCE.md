@@ -298,7 +298,7 @@ fork test mocks only its `latestRoundData()`/`decimals()` at a realistic price.
 | SDK (Vitest) | `pnpm --filter @repay/sdk test` | 18 passed |
 | Keeper (Vitest) | `pnpm --filter @repay/keeper test` | 6 passed |
 | Web unit (Vitest) | `pnpm --filter @repay/web test` | 7 passed |
-| Browser (Playwright, desktop + mobile) | `pnpm --filter @repay/web e2e` | 44 passed |
+| Browser (Playwright, desktop + mobile) | `pnpm --filter @repay/web e2e` | 46 passed |
 
 ## Source verification
 
