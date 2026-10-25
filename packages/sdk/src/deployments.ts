@@ -21,7 +21,8 @@ export interface RePayDeployment {
   deployer: Address;
   sourceCommit: string;
   compiler: string;
-  verified: boolean | "unknown";
+  verified: "sourcify-exact-match" | "unverified" | "unknown";
+  verification?: { sourcify?: { factory: string; implementation: string; url: string }; blockscout?: string };
   deployedAt: string;
 }
 

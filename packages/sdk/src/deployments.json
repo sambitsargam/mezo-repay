@@ -22,8 +22,16 @@
       "deployer": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB",
       "sourceCommit": "26e6069ca26601c7b998b5bcb2e41aaffb15b579",
       "compiler": "solc 0.8.24, evm london, optimizer 200 runs",
-      "verified": "unknown",
-      "deployedAt": "2026-10-25"
+      "verified": "sourcify-exact-match",
+      "deployedAt": "2026-10-25",
+      "verification": {
+        "sourcify": {
+          "factory": "exact_match (creation + runtime)",
+          "implementation": "exact_match (runtime; created by factory constructor)",
+          "url": "https://repo.sourcify.dev/31611/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c"
+        },
+        "blockscout": "submitted via API (standard-input and flattened); explorer did not mark verified at time of writing"
+      }
     }
   }
 }
