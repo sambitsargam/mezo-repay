@@ -84,8 +84,8 @@ function Receive() {
           <div className="flex flex-1 flex-col items-center gap-4 p-5">
             {valid && mode === "live" ? (
               <>
-                <div className="rounded-xl border border-line bg-white p-3">
-                  <QRCodeSVG value={link} size={196} level="M" marginSize={0} title="Payment link QR code" />
+                <div className="rounded-xl border border-line bg-white p-3" role="img" aria-label="QR code for the payment link">
+                  <QRCodeSVG value={link} size={196} level="M" marginSize={0} aria-hidden />
                 </div>
                 <div className="w-full">
                   <p className="eyebrow">Link</p>
