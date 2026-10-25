@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mezo RePay deck</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  :root { --ivory:#FAF7F0; --surface:#FFFDF9; --ink:#1C1A17; --soft:#423D36; --muted:#6C655B; --line:#E6DFD2; --copper:#B0522A; --copperwash:#F8EAE0; --sage:#5C7D62; --sagewash:#E7EFE6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ivory); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .slide { width: 1280px; height: 720px; padding: 72px 88px; position: relative; overflow: hidden; page-break-after: always; break-after: page; background: var(--ivory); border-bottom: 1px solid var(--line); }
+  .eyebrow { font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; letter-spacing: -.01em; margin: 16px 0 0; }
+  h1 { font-size: 72px; line-height: 1.04; }
+  h2 { font-size: 46px; line-height: 1.1; }
+  p, li { font-size: 22px; line-height: 1.5; color: var(--soft); }
+  .num { font-variant-numeric: tabular-nums; }
+  .accent { color: var(--copper); }
+  .foot { position: absolute; left: 88px; right: 88px; bottom: 36px; display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+  .grid { display: grid; gap: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+  .card h3 { margin: 0 0 6px; font-size: 20px; }
+  .card p { font-size: 17px; margin: 0; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: .85em; }
+  table { border-collapse: collapse; width: 100%; font-size: 18px; }
+  td { padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--soft); }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .bar { display: flex; height: 16px; border-radius: 99px; overflow: hidden; margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="eyebrow">Mezo RePay · Mezo testnet</div>
+  <h1 style="margin-top:120px;max-width:900px">Let your income pay down your Bitcoin loan.</h1>
+  <p style="max-width:760px;margin-top:28px">Receive MUSD, keep your operating cash, and automatically direct a chosen share toward your Mezo loan.</p>
+  <div class="foot"><span>github.com/sambitsargam/mezo-repay</span><span>Testnet only · not audited</span></div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">1 · Problem</div>
+  <h2>Borrowing against BTC is easy. Paying it back is a chore.</h2>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:48px">
+    <div class="card"><h3>Manual</h3><p>Owners must remember, size and send every repayment.</p></div>
+    <div class="card"><h3>Competing for cash</h3><p>Revenue lands in the same wallet as spending money.</p></div>
+    <div class="card"><h3>Disconnected tools</h3><p>Payment links don't repay loans; loan dashboards don't see revenue.</p></div>
+  </div>
+  <p style="margin-top:40px">Who: freelancers, studios and agencies, and BTC-holding founders borrowing MUSD on Mezo.</p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">2 · Product</div>
+  <h2>Every payment is split once, the moment it arrives.</h2>
+  <div class="card" style="margin-top:44px;max-width:860px">
+    <table><tr><td>Customer payment · INV-2026-001</td><td>500.00 MUSD</td></tr></table>
+    <div class="bar"><div style="width:30%;background:var(--copper)"></div><div style="flex:1;background:#A8BBA9"></div></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="card" style="background:var(--copperwash)"><h3 class="accent">To loan repayment · 30%</h3><p class="num" style="font-size:26px;color:var(--ink)">150.00 MUSD</p></div>
+      <div class="card" style="background:var(--sagewash)"><h3 style="color:var(--sage)">Operating cash · 70%</h3><p class="num" style="font-size:26px;color:var(--ink)">350.00 MUSD</p></div>
+    </div>
+  </div>
+  <p style="margin-top:28px">Real numbers from the live testnet run. Borrowed MUSD is never counted as income.</p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">3 · User flow</div>
+  <h2>Five steps from wallet to automated repayment.</h2>
+  <div class="grid" style="grid-template-columns:repeat(5,1fr);margin-top:48px">
+    <div class="card"><h3>01</h3><p>Create an account only your wallet controls</p></div>
+    <div class="card"><h3>02</h3><p>Account opens and owns a Mezo Trove</p></div>
+    <div class="card"><h3>03</h3><p>Set share, reserve, limits, cooldown</p></div>
+    <div class="card"><h3>04</h3><p>Share a payment link (approve or permit)</p></div>
+    <div class="card"><h3>05</h3><p>Keeper or owner repays; debt and ratio update</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">4 · Mezo integration</div>
+  <h2>The account contract <em>is</em> the borrower.</h2>
+  <ul style="margin-top:32px">
+    <li><code>BorrowerOperations</code>: openTrove, repayMUSD, closeTrove, addColl, withdrawColl, claimCollateral</li>
+    <li><code>TroveManager.getEntireDebtAndColl</code>: live debt including accrued interest</li>
+    <li>Respects the <b>1,800 MUSD minimum net debt</b> and 200 MUSD gas compensation; caps repayment in-block</li>
+    <li>MUSD EIP-2612 permit for one-transaction customer payments</li>
+    <li>Liquidation, redemption, surplus claim and recovery mode handled</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">5 · Security &amp; architecture</div>
+  <h2>Keepers can repay. Nothing else.</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:40px">
+    <div class="card"><h3 style="color:var(--sage)">Keeper can</h3><p>Call <code>executeRepayment</code>: repay this account's own Trove from pending income, within policy and Mezo's floor. Zero fee.</p></div>
+    <div class="card"><h3 class="accent">Keeper cannot</h3><p>Borrow, withdraw collateral, touch operating cash, change owner/policy, pay anyone, or call arbitrary contracts.</p></div>
+  </div>
+  <p style="margin-top:32px">Clones initialized atomically by an admin-less factory · nonReentrant everywhere · 61 Foundry tests incl. fuzz &amp; invariants · fork test on real Mezo bytecode · Slither triaged · Sourcify exact match. Self-review, not an audit.</p>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">6 · Working evidence (Mezo testnet)</div>
+  <h2>Real Trove, real payments, real debt reduction.</h2>
+  <div class="card" style="margin-top:32px">
+    <table>
+      <tr><td>Account opened Trove · 0.045 BTC</td><td>debt 2,202.00 MUSD</td></tr>
+      <tr><td>Customer paid 500 MUSD (separate wallet)</td><td>150 → repayment</td></tr>
+      <tr><td>Keeper repaid (no special permissions)</td><td>2,202.00 → 2,052.00</td></tr>
+      <tr><td>Non-owner setPolicy on-chain</td><td>reverted · NotOwner()</td></tr>
+      <tr><td>Permit payment + classified direct transfer</td><td>income 555.00</td></tr>
+      <tr><td>Repayment capped at Mezo minimum debt</td><td>debt = 2,000.0000</td></tr>
+    </table>
+  </div>
+  <div class="foot"><span>Factory 0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c</span><span>docs/EVIDENCE.md</span></div>
+</section>
+
+<section class="slide">
+  <div class="eyebrow">7 · Business hypothesis &amp; roadmap</div>
+  <h2>Tie repayment to revenue, and debt falls on its own.</h2>
+  <p style="margin-top:24px;max-width:960px">Hypothesis (unvalidated): businesses with recurring MUSD revenue will keep lower loan-to-value if repayment is automatic. Possible model: a small, capped share of repaid amounts.</p>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:28px">
+    <div class="card"><h3>Next</h3><p>Hosted, redundant keeper with public status and capped owner-funded tips</p></div>
+    <div class="card"><h3>Then</h3><p>Owner-approved auto-close to retire the minimum-debt tranche</p></div>
+    <div class="card"><h3>Later</h3><p>Invoices, partial payments, exports; audit before mainnet</p></div>
+  </div>
+</section>
+
+</body>
+</html>

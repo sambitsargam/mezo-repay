@@ -105,12 +105,26 @@ no transient storage, no `MCOPY`).
     so a stale oracle blocks repayments; RePay surfaces this as an RPC/protocol error and keeps funds
     pending.
 
+## Additional findings during implementation
+
+- **EIP-712 domain of MUSD** (`eip712Domain()` on-chain): name `"Mezo USD"`, version `"1"`,
+  chainId 31611, verifyingContract = MUSD. Used for permit payments; a live permit payment succeeded.
+- **Price oracle is a precompile.** `PriceFeed` reads `latestRoundData()` from
+  `0x7b7c000000000000000000000000000000000015`, a Mezo chain precompile. Local forks (anvil/forge)
+  cannot execute it (`EvmError: NotActivated`), so the fork test mocks only that call. All other
+  contracts in the fork test are the real deployed bytecode. Live behavior is proven separately on
+  testnet (`docs/EVIDENCE.md`).
+- **Sorted list size** at research time: 323 Troves. Hints from `HintHelpers.getApproxHint(nicr, 15, 42)`
+  resolve in a single RPC call.
+- **Faucet** dispensed both testnet BTC and MUSD to the deployer address.
+- **Blockscout verification** via API (standard-input and flattened) was accepted, but the explorer did
+  not mark contracts verified. Sourcify verification succeeded (exact match).
+
 ## Practical sizing for the demo Trove
 
-With minNetDebt = 1,800 and fee 0.1%, any partial repayment requires net debt above 1,800. The demo
-opens a Trove borrowing **2,400 MUSD** (net debt 2,402.4, total debt 2,602.4), which leaves up to
-~602 MUSD of repayable headroom. At a BTC price of ~80.5k a 200% collateral ratio needs
-≈ 0.065 BTC of collateral.
+With minNetDebt = 1,800 and fee 0.1%, any partial repayment requires net debt above 1,800. The live demo
+opened a Trove borrowing **2,000 MUSD** with 0.045 BTC (net debt 2,002, total debt 2,202, ≈164% CR),
+leaving 202 MUSD of repayable headroom, sized to the faucet allowance.
 
 ## Conflicts between documentation and deployed behavior
 

@@ -363,6 +363,28 @@
         "previewStatus": "Cooldown",
         "previewAmount": "0.00 MUSD"
       }
+    },
+    {
+      "step": "read-waiting-to-close",
+      "type": "read",
+      "at": "2026-10-25T08:51:47.292Z",
+      "summary": "Account state read",
+      "data": {
+        "block": "16357065",
+        "loanStatus": "active",
+        "debt": "2,000.0005 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "180.76%",
+        "btcPrice": "80,340.93 MUSD",
+        "pendingRepayment": "24.49 MUSD",
+        "operatingCash": "2,388.50 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "555.00 MUSD",
+        "totalRepaid": "202.00 MUSD",
+        "maxRepayable": "0.00 MUSD",
+        "previewStatus": "AtMinimumDebt",
+        "previewAmount": "0.00 MUSD"
+      }
     }
   ]
 }

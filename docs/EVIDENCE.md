@@ -50,6 +50,7 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | 21 | `keeper-execute-capped` | On-chain transaction | [success · block 16356863](https://explorer.test.mezo.org/tx/0x72905efeb0fe65e21f4ac3b1928c9f2c4ccd50d1f683020c16f02686968be9a1) | Keeper repayment capped by Mezo's minimum net debt: 76.50 MUSD pending, only the protocol-valid 52.0011 MUSD repaid (amount computed in-block incl. accrued interest); remainder stays pending |
 | 22 | `read-at-minimum-debt` | Read-only call | block 16356866 | Account state read |
 | 23 | `read-at-minimum-debt-after-cooldown` | Read-only call | block 16356911 | Account state read |
+| 24 | `read-waiting-to-close` | Read-only call | block 16357065 | Account state read |
 
 ## Recorded state
 
@@ -247,6 +248,25 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | totalRepaid | 202.00 MUSD |
 | maxRepayable | 0.00 MUSD |
 | previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+
+### read-waiting-to-close (read-only call)
+
+| Field | Value |
+| --- | --- |
+| block | 16357065 |
+| loanStatus | active |
+| debt | 2,000.0005 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 180.76% |
+| btcPrice | 80,340.93 MUSD |
+| pendingRepayment | 24.49 MUSD |
+| operatingCash | 2,388.50 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 555.00 MUSD |
+| totalRepaid | 202.00 MUSD |
+| maxRepayable | 0.00 MUSD |
+| previewStatus | AtMinimumDebt |
 | previewAmount | 0.00 MUSD |
 
 ## What this demonstrates
