@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ivory: 250 247 240;
+  --ivory-deep: 243 238 227;
+  --surface: 255 253 249;
+  --ink: 28 26 23;
+  --ink-soft: 66 61 54;
+  --ink-muted: 108 101 91;
+  --line: 230 223 210;
+  --line-strong: 208 199 183;
+  --copper: 176 82 42;
+  --copper-deep: 140 62 29;
+  --copper-wash: 248 234 224;
+  --sage: 92 125 98;
+  --sage-deep: 62 92 69;
+  --sage-wash: 231 239 230;
+  --amber: 150 104 18;
+  --amber-wash: 250 241 218;
+  --rust: 168 52 40;
+  --rust-wash: 250 229 225;
+  color-scheme: light;
+}
+
+html {
+  background: rgb(var(--ivory));
+}
+body {
+  background: rgb(var(--ivory));
+  color: rgb(var(--ink));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--copper));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-surface shadow-card;
+  }
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-ivory hover:bg-ink-soft;
+  }
+  .btn-accent {
+    @apply btn bg-copper text-white hover:bg-copper-deep;
+  }
+  .btn-secondary {
+    @apply btn border border-line-strong bg-surface text-ink hover:bg-ivory-deep;
+  }
+  .btn-ghost {
+    @apply btn text-ink-soft hover:bg-ivory-deep hover:text-ink;
+  }
+  .field {
+    @apply block min-h-[44px] w-full rounded-xl border border-line-strong bg-surface px-3 text-[15px] text-ink placeholder:text-ink-muted/70 focus:border-copper focus:outline-none focus:ring-2 focus:ring-copper/20;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-ink;
+  }
+  .hint {
+    @apply mt-1.5 text-[13px] leading-relaxed text-ink-muted;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted;
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-rise { animation: rise 260ms ease-out both; }
