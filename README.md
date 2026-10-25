@@ -24,8 +24,10 @@ set-aside share to the loan. The repayment is bounded by your policy and Mezo's 
 | Network | Mezo testnet, chain 31611 |
 | Contracts | Deployed: factory [`0xDA44d73B…f61c`](https://explorer.test.mezo.org/address/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c), Sourcify exact match |
 | Live end-to-end run | Done: account → Trove → customer payments → keeper repayments → debt 2,202 → 2,000 MUSD ([evidence](docs/EVIDENCE.md)) |
-| Web app | Runs locally (`pnpm dev`). Public URL: _not yet hosted_ |
+| Web app | **https://mezo-repay.vercel.app** (Vercel; opened and checked 2026-10-25) · also runs locally with `pnpm dev` |
 | Keeper | Working; run live on demand. No always-on public instance |
+
+Live app: **https://mezo-repay.vercel.app** · read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x76D5a6E6D0D494299A281006Bb5471d50acA388C
 
 Two-minute tour: **[docs/JUDGE_QUICKSTART.md](docs/JUDGE_QUICKSTART.md)**.
 

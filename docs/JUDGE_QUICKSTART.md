@@ -10,7 +10,7 @@ bounded by your policy and Mezo's minimum-debt rule.
 Open the app's read-only live view of the demo account (live chain data, nothing mocked):
 
 ```
-<app-url>/app?view=0x76D5a6E6D0D494299A281006Bb5471d50acA388C
+https://mezo-repay.vercel.app/app?view=0x76D5a6E6D0D494299A281006Bb5471d50acA388C
 ```
 
 (Locally: `http://localhost:3000/app?view=0x76D5…388C` after `pnpm dev`.)
@@ -31,8 +31,8 @@ loan"** because the loan sits at Mezo's minimum net debt. Activity rows link to 
 
 ## 3. Explore the product (60 s)
 
-- `/example`: a fully populated account with **clearly labeled sample data**.
-- `/pay/0x76D5a6E6D0D494299A281006Bb5471d50acA388C?amount=25&ref=JUDGE&chain=31611`: the public payer
+- https://mezo-repay.vercel.app/example: a fully populated account with **clearly labeled sample data**.
+- https://mezo-repay.vercel.app/pay/0x76D5a6E6D0D494299A281006Bb5471d50acA388C?amount=25&ref=JUDGE&chain=31611 : the public payer
   page. It verifies on-chain that the recipient is a genuine RePay account.
 - With a wallet on Mezo testnet (chain 31611, RPC `https://rpc.test.mezo.org`, faucet
   https://faucet.test.mezo.org): `/app/setup` walks through creating your own account and loan.

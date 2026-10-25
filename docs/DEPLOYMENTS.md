@@ -41,4 +41,12 @@ other than 31611 and checks that `BorrowerOperations.musd()` matches the expecte
 
 ## Frontend
 
-See README → "Hosting the web app". A public URL is listed only after it has been opened and checked.
+Hosted on Vercel at **https://mezo-repay.vercel.app** (project `mezo-repay`, production). Opened and checked on 2026-10-25: home, example, live read-only view, activity and payer pages all loaded live data; no horizontal overflow on mobile.
+
+Redeploy from the repo root (prebuilt, Node 22):
+
+```bash
+npx vercel@63.1.2 build --prod && npx vercel@63.1.2 deploy --prebuilt --prod
+```
+
+The linked project uses root directory `apps/web`.

@@ -41,7 +41,7 @@ Mezo RePay: ordinary income, real repayment."
 
 ## Recording procedure
 
-1. `pnpm build && pnpm --filter @repay/web start`, or use the hosted URL.
+1. Use https://mezo-repay.vercel.app (or `pnpm build && pnpm --filter @repay/web start` locally).
 2. Browser at 1440×900, zoom 100%, light OS theme, no extensions visible.
 3. Record with the OS screen recorder (macOS: Shift-Cmd-5 → "Record selected portion") at 1440×900.
 4. Read the script while following the shot list; keep each shot on screen until the line finishes.

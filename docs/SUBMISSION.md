@@ -55,7 +55,7 @@ borrowing MUSD against BTC.
   Sourcify exact match.
 - Real end-to-end run on testnet: account → Trove → customer payments (approve and permit) → keeper
   repayments → debt 2,202 → 2,000 MUSD → rejected unauthorized action. See `docs/EVIDENCE.md`.
-- Web app: _[live URL if hosted and checked; otherwise "runs locally with `pnpm dev`"]_.
+- Web app: https://mezo-repay.vercel.app (hosted on Vercel, opened and checked).
 - Keeper: run live on demand; no always-on public instance.
 
 ## Technologies
