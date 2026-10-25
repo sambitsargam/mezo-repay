@@ -14,6 +14,16 @@
       "collSurplusPool": "0xB4C35747c26E4aB5F1a7CdC7E875B5946eFa6fa9",
       "interestRateManager": "0xD4D6c36A592A2c5e86035A6bca1d57747a567f37"
     },
-    "repay": null
+    "repay": {
+      "factory": "0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c",
+      "implementation": "0x469C9d8Fa5c8c8C8334f39ae2e52064B9e3DA9DA",
+      "deploymentBlock": 16356360,
+      "deploymentTx": "0x78dc084e1060fe0a60342052847f116790ea76817083c935f197e8f1aaf380c4",
+      "deployer": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB",
+      "sourceCommit": "26e6069ca26601c7b998b5bcb2e41aaffb15b579",
+      "compiler": "solc 0.8.24, evm london, optimizer 200 runs",
+      "verified": "unknown",
+      "deployedAt": "2026-10-25"
+    }
   }
 }
