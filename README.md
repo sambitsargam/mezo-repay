@@ -126,7 +126,7 @@ sold to repay. Payment references are labels, not proof of invoices.
 
 ## Hackathon materials
 
-[SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
+Demo video (4:15): [docs/video/mezo-repay-demo.mp4](docs/video/mezo-repay-demo.mp4) · [SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
 deck: [source](docs/deck/index.html) / [PDF](docs/deck/mezo-repay-deck.pdf)
 
 ## License

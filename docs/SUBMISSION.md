@@ -58,6 +58,10 @@ borrowing MUSD against BTC.
 - Web app: https://mezo-repay.vercel.app (hosted on Vercel, opened and checked).
 - Keeper: run live on demand; no always-on public instance.
 
+## Demo video
+
+`docs/video/mezo-repay-demo.mp4` (4:15): pitch deck with narration, then a live walkthrough of the hosted app and Mezo explorer. Narration is synthesized speech. Upload it to YouTube/Loom yourself if the form needs a link.
+
 ## Technologies
 
 Solidity 0.8.24 (london), Foundry (unit, fuzz, invariant, fork tests), OpenZeppelin 5, TypeScript,
