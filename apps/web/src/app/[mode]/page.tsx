@@ -98,7 +98,7 @@ function Dashboard() {
 
       <div className="grid gap-5 xl:grid-cols-3">
         <Card className="p-5 xl:col-span-2">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-6 min-[420px]:grid-cols-2 sm:grid-cols-3">
             <Stat label="Outstanding debt" emphasis sub={hasLoan ? "Includes accrued interest" : TROVE_STATUS_LABEL[s.loanStatus]}>
               <Amount value={hasLoan ? s.debt : 0n} />
             </Stat>

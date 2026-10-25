@@ -94,6 +94,21 @@ function NetworkBadge() {
   );
 }
 
+function ViewingBanner() {
+  const { viewing, stopViewing } = useSelection();
+  const { address } = useNetwork();
+  if (!viewing) return null;
+  return (
+    <div className="border-b border-line bg-surface px-4 py-2 text-center text-[13px] text-ink-soft" role="note">
+      <strong className="font-semibold text-ink">Read-only live view</strong> of account <span className="font-mono">{shortAddress(viewing)}</span> on Mezo testnet.{" "}
+      {address ? "Owner-only actions will be rejected by the contract unless your wallet is the owner." : "Connect the owner wallet to manage it."}{" "}
+      <button onClick={stopViewing} className="font-medium text-copper-deep underline underline-offset-2">
+        Stop viewing
+      </button>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const mode = useMode();
   const [open, setOpen] = useState(false);
@@ -110,6 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
       )}
+      <ViewingBanner />
       <div className="mx-auto flex max-w-[1280px]">
         <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r border-line px-3 py-5 lg:flex" aria-label="Primary">
           <Link href="/" className="mb-6 px-3">

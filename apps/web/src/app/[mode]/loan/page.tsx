@@ -51,7 +51,7 @@ function Loan() {
       {active && (
         <>
           <Card className="p-5">
-            <dl className="grid grid-cols-2 gap-6 md:grid-cols-4">
+            <dl className="grid grid-cols-1 gap-6 min-[420px]:grid-cols-2 md:grid-cols-4">
               <Stat label="Debt incl. interest" emphasis>
                 <Amount value={s.debt} />
               </Stat>

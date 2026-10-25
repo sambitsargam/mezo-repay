@@ -25,10 +25,12 @@ export function Amount({
 }) {
   if (value === undefined || value === null) return <span className={cx("num text-ink-muted", className)}>—</span>;
   return (
-    <span className={cx("num whitespace-nowrap", className)}>
-      {sign}
-      {formatUnits18(value, digits)}
-      {unit && <span className="ml-1 text-[0.72em] font-medium text-ink-muted">{unit}</span>}
+    <span className={cx("num", className)}>
+      <span className="whitespace-nowrap">
+        {sign}
+        {formatUnits18(value, digits)}
+      </span>
+      {unit && <span className="ml-1 whitespace-nowrap text-[0.72em] font-medium text-ink-muted">{unit}</span>}
     </span>
   );
 }
@@ -106,7 +108,7 @@ export function Stat({ label, children, sub, emphasis }: { label: string; childr
   return (
     <div className="min-w-0">
       <dt className="eyebrow">{label}</dt>
-      <dd className={cx("mt-1.5 text-ink", emphasis ? "font-display text-[28px] leading-tight tracking-tight" : "text-xl font-semibold")}>{children}</dd>
+      <dd className={cx("mt-1.5 text-ink", emphasis ? "font-display text-[22px] leading-tight tracking-tight sm:text-[28px]" : "text-lg font-semibold sm:text-xl")}>{children}</dd>
       {sub && <dd className="mt-1 text-[13px] text-ink-muted">{sub}</dd>}
     </div>
   );

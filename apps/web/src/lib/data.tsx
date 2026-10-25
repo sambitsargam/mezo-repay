@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useChainId, usePublicClient } from "wagmi";
-import type { Address, PublicClient } from "viem";
+import { type Address, type PublicClient, getAddress, isAddress } from "viem";
 import {
   type AccountSnapshot,
   type ActivityItem,
@@ -68,6 +68,9 @@ export function useOwnedAccounts(): Loadable<Address[]> {
 
 interface SelectionCtx {
   account: Address | undefined;
+  /** Read-only live view of an account the connected wallet may not own (?view=0x…). */
+  viewing: Address | null;
+  stopViewing: () => void;
   accounts: Address[];
   loading: boolean;
   error: Error | null;
@@ -81,6 +84,28 @@ export function AccountSelectionProvider({ children }: { children: React.ReactNo
   const { address } = useAccount();
   const owned = useOwnedAccounts();
   const [chosen, setChosen] = useState<Address | undefined>(undefined);
+  const [viewing, setViewing] = useState<Address | null>(null);
+  useEffect(() => {
+    if (mode !== "live") return;
+    try {
+      const q = new URLSearchParams(window.location.search).get("view");
+      const v = q && isAddress(q) ? getAddress(q) : (window.sessionStorage.getItem("repay:view") as Address | null);
+      if (v && isAddress(v)) {
+        setViewing(getAddress(v));
+        window.sessionStorage.setItem("repay:view", v);
+      }
+    } catch {
+      /* storage unavailable */
+    }
+  }, [mode]);
+  const stopViewing = useCallback(() => {
+    setViewing(null);
+    try {
+      window.sessionStorage.removeItem("repay:view");
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const storageKey = address ? `repay:selected:${address.toLowerCase()}` : null;
 
   useEffect(() => {
@@ -97,9 +122,10 @@ export function AccountSelectionProvider({ children }: { children: React.ReactNo
   const accounts = useMemo(() => owned.data ?? [], [owned.data]);
   const account = useMemo(() => {
     if (mode === "example") return EXAMPLE_ACCOUNT as Address;
+    if (viewing) return viewing;
     if (chosen && accounts.some((a) => a.toLowerCase() === chosen.toLowerCase())) return chosen;
     return accounts[accounts.length - 1];
-  }, [mode, chosen, accounts]);
+  }, [mode, chosen, accounts, viewing]);
 
   const select = useCallback(
     (a: Address) => {
@@ -115,7 +141,7 @@ export function AccountSelectionProvider({ children }: { children: React.ReactNo
 
   return (
     <Selection.Provider
-      value={{ account, accounts, loading: owned.isLoading, error: owned.error, select, refresh: owned.refetch }}
+      value={{ account, viewing, stopViewing, accounts, loading: owned.isLoading && !viewing, error: viewing ? null : owned.error, select, refresh: owned.refetch }}
     >
       {children}
     </Selection.Provider>

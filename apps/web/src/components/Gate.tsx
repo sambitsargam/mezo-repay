@@ -33,6 +33,7 @@ export function Gate({ need, children }: { need: "wallet" | "account"; children:
       </Notice>
     );
   }
+  if (sel.viewing) return <>{children}</>;
   if (!net.isConnected) {
     return (
       <Card>
