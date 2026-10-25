@@ -19,6 +19,7 @@ import {
   http,
   parseEther,
   parseEventLogs,
+  parseSignature,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -326,6 +327,75 @@ const steps: Record<string, () => Promise<void>> = {
     save();
     const { data } = await snapshotData(account);
     ev.steps.push({ step: "read-after-pay", type: "read", at: new Date().toISOString(), summary: "Account state after payment", data });
+    save();
+    console.log(data);
+  },
+
+  async "pay-permit"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "50");
+    const ref = args[2] ?? "INV-2026-002";
+    const nonce = await pub.readContract({ address: d.protocol.musd, abi: musdAbi, functionName: "nonces", args: [customerAcct.address] });
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 1800);
+    const sig = await customer.signTypedData({
+      domain: { name: "Mezo USD", version: "1", chainId: mezoTestnet.id, verifyingContract: d.protocol.musd },
+      types: {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      },
+      primaryType: "Permit",
+      message: { owner: customerAcct.address, spender: account, value: amount, nonce, deadline },
+    });
+    const { r, s: sv, v, yParity } = parseSignature(sig);
+    const hash = await customer.writeContract({
+      address: account,
+      abi: repayAccountAbi,
+      functionName: "payWithPermit",
+      args: [amount, encodeReference(ref), deadline, v !== undefined ? Number(v) : yParity + 27, r, sv],
+    });
+    const rc = await recordTx("customer-pay-permit", hash, `Customer paid ${formatMusd(amount)} in one transaction using an EIP-2612 permit (ref ${ref})`);
+    const pe = parseEventLogs({ abi: repayAccountAbi, logs: rc.logs, eventName: "PaymentReceived" })[0]!;
+    ev.steps[ev.steps.length - 1]!.data = { paymentId: pe.args.paymentId.toString(), toRepayment: formatMusd(pe.args.toRepayment), toOperating: formatMusd(pe.args.toOperating) };
+    save();
+  },
+
+  async "direct-transfer"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "5");
+    const hash = await owner.writeContract({ address: d.protocol.musd, abi: musdAbi, functionName: "transfer", args: [account, amount] });
+    await recordTx("direct-transfer", hash, `Plain ERC-20 transfer of ${formatMusd(amount)} to the account (arrives as unclassified, not income)`);
+    const { data } = await snapshotData(account);
+    ev.steps.push({ step: "read-after-direct-transfer", type: "read", at: new Date().toISOString(), summary: "Direct transfer shows as unclassified; income unchanged", data });
+    save();
+    console.log(data);
+  },
+
+  async classify() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "5");
+    const hash = await owner.writeContract({
+      address: account,
+      abi: repayAccountAbi,
+      functionName: "classifyUnclassified",
+      args: [amount, true, false, encodeReference(args[2] ?? "wire INV-2026-003")],
+    });
+    await recordTx("classify-revenue", hash, `Owner classified ${formatMusd(amount)} of the direct transfer as customer revenue (split by policy)`);
+  },
+
+  async "deposit-capital"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "60");
+    const a = await owner.writeContract({ address: d.protocol.musd, abi: musdAbi, functionName: "approve", args: [account, amount] });
+    await recordTx("owner-approve-capital", a, `Owner approved ${formatMusd(amount)} capital`);
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "depositCapital", args: [amount, true] });
+    await recordTx("owner-capital-to-repayment", hash, `Owner deposited ${formatMusd(amount)} of capital (not income) directly into pending repayment`);
+    const { data } = await snapshotData(account);
+    ev.steps.push({ step: "read-after-capital", type: "read", at: new Date().toISOString(), summary: "Pending repayment now exceeds the protocol's repayable headroom", data });
     save();
     console.log(data);
   },

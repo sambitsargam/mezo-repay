@@ -195,6 +195,148 @@
         "previewStatus": "NothingPending",
         "previewAmount": "0.00 MUSD"
       }
+    },
+    {
+      "step": "customer-pay-permit",
+      "type": "transaction",
+      "at": "2026-10-25T08:36:44.581Z",
+      "txHash": "0xf0b49d80c2b0b4e02b4970e9d91fb778a6b1fe6c7bcdcf6c056319b5285dff3b",
+      "explorer": "https://explorer.test.mezo.org/tx/0xf0b49d80c2b0b4e02b4970e9d91fb778a6b1fe6c7bcdcf6c056319b5285dff3b",
+      "blockNumber": "16356848",
+      "status": "success",
+      "summary": "Customer paid 50.00 MUSD in one transaction using an EIP-2612 permit (ref INV-2026-002)",
+      "data": {
+        "paymentId": "2",
+        "toRepayment": "15.00 MUSD",
+        "toOperating": "35.00 MUSD"
+      }
+    },
+    {
+      "step": "direct-transfer",
+      "type": "transaction",
+      "at": "2026-10-25T08:36:57.564Z",
+      "txHash": "0x1756b435bfcf1bbfdf7b6aebc08c9e0941a0e1e13627d02fa84ca16282bec6a5",
+      "explorer": "https://explorer.test.mezo.org/tx/0x1756b435bfcf1bbfdf7b6aebc08c9e0941a0e1e13627d02fa84ca16282bec6a5",
+      "blockNumber": "16356850",
+      "status": "success",
+      "summary": "Plain ERC-20 transfer of 5.00 MUSD to the account (arrives as unclassified, not income)",
+      "data": {}
+    },
+    {
+      "step": "read-after-direct-transfer",
+      "type": "read",
+      "at": "2026-10-25T08:36:58.900Z",
+      "summary": "Direct transfer shows as unclassified; income unchanged",
+      "data": {
+        "block": "16356850",
+        "loanStatus": "active",
+        "debt": "2,052.0010 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "176.24%",
+        "btcPrice": "80,365.87 MUSD",
+        "pendingRepayment": "15.00 MUSD",
+        "operatingCash": "2,385.00 MUSD",
+        "unclassified": "5.00 MUSD",
+        "totalIncome": "550.00 MUSD",
+        "totalRepaid": "150.00 MUSD",
+        "maxRepayable": "52.00 MUSD",
+        "previewStatus": "Ready",
+        "previewAmount": "15.00 MUSD"
+      }
+    },
+    {
+      "step": "classify-revenue",
+      "type": "transaction",
+      "at": "2026-10-25T08:37:13.588Z",
+      "txHash": "0x4944e7b491cd465132aa4c90078f9f56563154d97573aeb61b479eca63c4551b",
+      "explorer": "https://explorer.test.mezo.org/tx/0x4944e7b491cd465132aa4c90078f9f56563154d97573aeb61b479eca63c4551b",
+      "blockNumber": "16356855",
+      "status": "success",
+      "summary": "Owner classified 5.00 MUSD of the direct transfer as customer revenue (split by policy)",
+      "data": {}
+    },
+    {
+      "step": "owner-approve-capital",
+      "type": "transaction",
+      "at": "2026-10-25T08:37:25.510Z",
+      "txHash": "0xf0dc863d7a0d495d6045f2483eacd347ab31d8fda6a6b93034cb83291b06bc29",
+      "explorer": "https://explorer.test.mezo.org/tx/0xf0dc863d7a0d495d6045f2483eacd347ab31d8fda6a6b93034cb83291b06bc29",
+      "blockNumber": "16356857",
+      "status": "success",
+      "summary": "Owner approved 60.00 MUSD capital",
+      "data": {}
+    },
+    {
+      "step": "owner-capital-to-repayment",
+      "type": "transaction",
+      "at": "2026-10-25T08:37:32.459Z",
+      "txHash": "0x783533636b7bbf086309a812f1087a9c73284506e1d85ef0efa46cc887cac7f7",
+      "explorer": "https://explorer.test.mezo.org/tx/0x783533636b7bbf086309a812f1087a9c73284506e1d85ef0efa46cc887cac7f7",
+      "blockNumber": "16356858",
+      "status": "success",
+      "summary": "Owner deposited 60.00 MUSD of capital (not income) directly into pending repayment",
+      "data": {}
+    },
+    {
+      "step": "read-after-capital",
+      "type": "read",
+      "at": "2026-10-25T08:37:33.945Z",
+      "summary": "Pending repayment now exceeds the protocol's repayable headroom",
+      "data": {
+        "block": "16356859",
+        "loanStatus": "active",
+        "debt": "2,052.0011 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "176.30%",
+        "btcPrice": "80,396.82 MUSD",
+        "pendingRepayment": "76.50 MUSD",
+        "operatingCash": "2,388.50 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "555.00 MUSD",
+        "totalRepaid": "150.00 MUSD",
+        "maxRepayable": "52.00 MUSD",
+        "previewStatus": "Ready",
+        "previewAmount": "52.00 MUSD"
+      }
+    },
+    {
+      "step": "keeper-execute-capped",
+      "type": "transaction",
+      "at": "2026-10-25T08:37:48.642Z",
+      "txHash": "0x72905efeb0fe65e21f4ac3b1928c9f2c4ccd50d1f683020c16f02686968be9a1",
+      "explorer": "https://explorer.test.mezo.org/tx/0x72905efeb0fe65e21f4ac3b1928c9f2c4ccd50d1f683020c16f02686968be9a1",
+      "blockNumber": "16356863",
+      "status": "success",
+      "summary": "Keeper repayment capped by Mezo's minimum net debt: 76.50 MUSD pending, only the protocol-valid 52.0011 MUSD repaid (amount computed in-block incl. accrued interest); remainder stays pending",
+      "data": {
+        "previewedAmount": "52001111468590830799 wei",
+        "simulatedAmount": "52001114069602563503 wei",
+        "executedAmount": "52001118621373095735 wei",
+        "debtBefore": "2052001118621373095735 wei",
+        "debtAfter": "2000000000000000000000 wei (= minNetDebt 1800 + gas compensation 200)"
+      }
+    },
+    {
+      "step": "read-at-minimum-debt",
+      "type": "read",
+      "at": "2026-10-25T08:38:04.767Z",
+      "summary": "Account state read",
+      "data": {
+        "block": "16356866",
+        "loanStatus": "active",
+        "debt": "2,000.0000 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "180.87%",
+        "btcPrice": "80,388.33 MUSD",
+        "pendingRepayment": "24.49 MUSD",
+        "operatingCash": "2,388.50 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "555.00 MUSD",
+        "totalRepaid": "202.00 MUSD",
+        "maxRepayable": "0.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD"
+      }
     }
   ]
 }
