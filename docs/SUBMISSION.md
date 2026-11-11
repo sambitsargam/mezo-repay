@@ -13,10 +13,10 @@
 
 - Live app: https://mezo-repay.vercel.app
 - Read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
-- Pitch deck: https://mezo-repay.vercel.app/deck/ (PDF: `docs/deck/mezo-repay-deck.pdf`)
+- Pitch deck: https://mezo-repay.vercel.app/deck (PDF: `docs/deck/mezo-repay-deck.pdf`)
 - Code: https://github.com/sambitsargam/mezo-repay
 - Evidence (every transaction, with explorer links): `docs/EVIDENCE.md`
-- Demo video (1:50): `docs/video/mezo-repay-demo.mp4`, or the uploaded link **(fill if the form needs a URL)**
+- Demo video (1:36): `docs/video/mezo-repay-demo.mp4`, or the uploaded link **(fill if the form needs a URL)**
 
 ## Overview (for the form)
 
@@ -115,7 +115,7 @@ hypothesis: we have no paying users yet.
 
 ## Demo video
 
-`docs/video/mezo-repay-demo.mp4` (1:50): the live on-chain flow (account, Trove, customer payment,
+`docs/video/mezo-repay-demo.mp4` (1:36): the live on-chain flow (account, Trove, customer payment,
 keeper repayment, collateral guard) in the hosted app and Mezo explorer. Narration is synthesized
 speech. Upload it to YouTube or Loom if the form needs a link.
 

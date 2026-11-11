@@ -37,7 +37,7 @@ target 180%) showing what it already protected. **Activity** lists every event w
   testnet MUSD you can pay the demo account yourself.
 - With a wallet on Mezo testnet (chain 31611, RPC `https://rpc.test.mezo.org`, faucet
   https://faucet.test.mezo.org): `/app/setup` walks you through creating your own account and loan.
-- Deck: https://mezo-repay.vercel.app/deck/
+- Deck: https://mezo-repay.vercel.app/deck
 
 ## Run it
 
