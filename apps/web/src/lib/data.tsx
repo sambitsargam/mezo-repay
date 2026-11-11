@@ -203,11 +203,16 @@ export interface KeeperView {
   lastExecutionAt: string | null;
   pollSeconds: number | null;
   mode?: string;
+  host?: string;
+  workflow?: string;
+  lastRun?: { status: string; conclusion: string | null; at: string; url: string } | null;
   accountStatus?: { previewStatus: string; checkedAt: string; lastAction?: { kind: string; at: string; txHash?: string; error?: string } };
   error?: string;
 }
 
-const KEEPER_URL = process.env.NEXT_PUBLIC_KEEPER_STATUS_URL || "";
+/** Defaults to this app's own status route for the hosted keeper. Set to "off" to disable. */
+const KEEPER_ENV = process.env.NEXT_PUBLIC_KEEPER_STATUS_URL;
+const KEEPER_URL = KEEPER_ENV === "off" ? "" : KEEPER_ENV || "/api/keeper";
 
 /** Keeper status comes only from the keeper's own status endpoint. No endpoint → "not configured". */
 export function useKeeper(account?: Address): Loadable<KeeperView> {
@@ -228,6 +233,9 @@ export function useKeeper(account?: Address): Loadable<KeeperView> {
           lastExecutionAt: s.lastExecution?.at ?? null,
           pollSeconds: s.pollSeconds ?? null,
           mode: s.mode,
+          host: s.host,
+          workflow: s.workflow,
+          lastRun: s.lastRun ?? null,
           accountStatus: st,
         };
       } catch (e) {

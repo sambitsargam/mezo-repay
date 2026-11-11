@@ -1,0 +1,51 @@
+# Hosted keeper: one keeper pass on Mezo testnet every 10 minutes.
+# The keeper key is a repository secret (KEEPER_PRIVATE_KEY) for a testnet-only wallet with no
+# authority over any account: it can only call the permissionless `protect` and `executeRepayment`.
+# GitHub may start scheduled runs late; owners can always repay or protect from the app.
+name: keeper
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keeper
+  cancel-in-progress: false
+
+jobs:
+  pass:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      MEZO_RPC_URL: https://rpc.test.mezo.org
+      KEEPER_STATE_DIR: ${{ github.workspace }}/keeper-state
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @repay/keeper...
+      - name: Restore discovery checkpoint
+        uses: actions/cache/restore@v4
+        with:
+          path: keeper-state/state.json
+          key: keeper-state-${{ github.run_id }}
+          restore-keys: keeper-state-
+      - name: Keeper pass (live, chain 31611 only)
+        env:
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+        run: pnpm --filter @repay/keeper once -- --live
+      - name: Save discovery checkpoint
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: keeper-state/state.json
+          key: keeper-state-${{ github.run_id }}

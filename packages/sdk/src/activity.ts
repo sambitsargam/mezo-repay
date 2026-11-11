@@ -16,7 +16,8 @@ export type ActivityKind =
   | "classify"
   | "capital"
   | "surplus"
-  | "btcWithdrawal";
+  | "btcWithdrawal"
+  | "guard";
 
 export interface ActivityItem {
   kind: ActivityKind;
@@ -48,6 +49,10 @@ const KIND: Record<string, ActivityKind> = {
   CapitalDeposited: "capital",
   CollateralSurplusClaimed: "surplus",
   BtcWithdrawn: "btcWithdrawal",
+  GuardUpdated: "guard",
+  BufferFunded: "guard",
+  BufferWithdrawn: "guard",
+  CollateralProtected: "guard",
 };
 
 function str(v: unknown): string {

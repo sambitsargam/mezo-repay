@@ -1,5 +1,5 @@
 "use client";
-import { type LucideIcon, ArrowDownLeft, ArrowUpRight, Ban, Coins, FileText, Landmark, PauseCircle, Repeat, SlidersHorizontal, Undo2 } from "lucide-react";
+import { type LucideIcon, ArrowDownLeft, ArrowUpRight, Ban, Coins, FileText, Landmark, PauseCircle, Repeat, ShieldCheck, SlidersHorizontal, Undo2 } from "lucide-react";
 import type { ActivityItem, ActivityKind } from "@repay/sdk";
 import { formatBps } from "@repay/sdk";
 import { Amount, TxLink, cx } from "./ui";
@@ -19,6 +19,7 @@ const META: Record<ActivityKind, { label: string; icon: LucideIcon; tone: string
   capital: { label: "Owner capital deposited", icon: ArrowDownLeft, tone: "text-ink-soft bg-ivory-deep" },
   surplus: { label: "Collateral surplus claimed", icon: Coins, tone: "text-ink-soft bg-ivory-deep" },
   btcWithdrawal: { label: "BTC withdrawn", icon: ArrowUpRight, tone: "text-ink-soft bg-ivory-deep" },
+  guard: { label: "Collateral guard", icon: ShieldCheck, tone: "text-sage-deep bg-sage-wash" },
 };
 
 export const ACTIVITY_FILTERS: Array<{ id: "all" | ActivityKind | "loan"; label: string }> = [
@@ -54,6 +55,16 @@ function subline(i: ActivityItem): string | null {
       return null;
     }
   }
+  if (i.kind === "guard") {
+    const pct = (v: string) => `${(Number(BigInt(v) / 10n ** 14n) / 100).toFixed(1)}%`;
+    if (i.eventName === "CollateralProtected") return `Protected · ratio ${pct(d.ratioBefore!)} → ${pct(d.ratioAfter!)}`;
+    if (i.eventName === "GuardUpdated" && d.guard) {
+      const g = JSON.parse(d.guard) as { triggerRatio: string; targetRatio: string };
+      return g.triggerRatio === "0" ? "Guard turned off" : `Trigger ${pct(g.triggerRatio)} → target ${pct(g.targetRatio)}`;
+    }
+    if (i.eventName === "BufferFunded") return "BTC buffer funded";
+    if (i.eventName === "BufferWithdrawn") return "BTC buffer withdrawn";
+  }
   if (i.kind === "pause") return d.paused === "true" ? "Paused" : "Resumed";
   if (i.kind === "classify") return d.asRevenue === "true" ? "As revenue" : "As owner capital";
   return null;
@@ -86,7 +97,7 @@ export function ActivityRow({ item, showAccount = false, index = 0 }: { item: Ac
             {m.label}
             {item.reference && <span className="ml-2 font-normal text-ink-muted">· {item.reference}</span>}
           </p>
-          {item.amount !== null && item.kind !== "collateral" && item.kind !== "surplus" && item.kind !== "btcWithdrawal" ? (
+          {item.amount !== null && item.kind !== "collateral" && item.kind !== "surplus" && item.kind !== "btcWithdrawal" && item.kind !== "guard" ? (
             <Amount value={item.amount} className={cx("text-sm font-medium", item.kind === "payment" ? "text-sage-deep" : "text-ink")} sign={item.kind === "payment" ? "+" : outflow ? "−" : undefined} />
           ) : item.amount !== null ? (
             <Amount value={item.amount} unit="BTC" digits={6} className="text-sm font-medium" />

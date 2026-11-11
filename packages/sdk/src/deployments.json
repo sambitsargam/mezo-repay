@@ -55,6 +55,13 @@
         "version": "1",
         "status": "superseded by v2 on 2026-11-12; demo Trove closed"
       }
-    ]
+    ],
+    "keeper": {
+      "address": "0x2f7b81940281d513b0DbfebE78005030391e1c02",
+      "host": "GitHub Actions schedule",
+      "intervalSeconds": 600,
+      "workflow": "https://github.com/sambitsargam/mezo-repay/actions/workflows/keeper.yml",
+      "workflowApi": "https://api.github.com/repos/sambitsargam/mezo-repay/actions/workflows/keeper.yml/runs?per_page=10"
+    }
   }
 }

@@ -68,6 +68,26 @@ function Automation() {
             <KeyValue
               rows={[
                 ["Policy allows automation", s.policy.paused ? <Pill key="a" tone="warning">Paused by owner</Pill> : <Pill key="a" tone="positive">Yes</Pill>],
+                ...(k.host
+                  ? ([
+                      [
+                        "Hosted keeper",
+                        <a key="h" href={k.workflow} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-2 hover:text-ink">
+                          {k.host}, every {formatDuration(k.pollSeconds ?? 0)}
+                        </a>,
+                      ],
+                      [
+                        "Latest scheduled run",
+                        k.lastRun ? (
+                          <a key="r" href={k.lastRun.url} target="_blank" rel="noreferrer" className="underline decoration-line underline-offset-2 hover:text-ink">
+                            {k.lastRun.status === "completed" ? (k.lastRun.conclusion ?? "done") : k.lastRun.status} · {ago(k.lastRun.at, now)}
+                          </a>
+                        ) : (
+                          "No runs yet"
+                        ),
+                      ],
+                    ] as [string, React.ReactNode][])
+                  : []),
                 ["Last successful keeper scan", k.configured ? ago(k.lastSuccessfulScanAt, now) : "Unknown (no keeper status)"],
                 ["Keeper last checked this account", k.accountStatus ? ago(k.accountStatus.checkedAt, now) : "—"],
                 ["Last repayment by anyone (on-chain)", s.lastExecutionAt ? ago(new Date(s.lastExecutionAt * 1000).toISOString(), now) : "Never"],
@@ -118,6 +138,10 @@ function Automation() {
               <li>Call <code className="font-mono text-xs">executeRepayment</code> on any account</li>
               <li>Repay that account&apos;s own Trove from its pending allocation</li>
               <li>Only within your policy and Mezo&apos;s minimum debt</li>
+              <li>
+                Call <code className="font-mono text-xs">protect</code> when the ratio is below your guard trigger: repay from pending, then move your buffer BTC into the
+                same Trove
+              </li>
             </ul>
           </div>
           <div>
@@ -126,14 +150,14 @@ function Automation() {
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft">
               <li>Borrow more, withdraw collateral or close the loan</li>
-              <li>Change the owner or policy, or pause/resume</li>
-              <li>Touch operating cash or send funds anywhere</li>
+              <li>Change the owner, policy or guard, or pause/resume</li>
+              <li>Touch operating cash or send MUSD or BTC anywhere but this account&apos;s own Trove</li>
               <li>Take a fee (keeper fee is zero; the keeper operator pays gas)</li>
             </ul>
           </div>
         </div>
         <p className="border-t border-line px-5 py-3 text-[13px] text-ink-muted">
-          Keeper execution is not guaranteed. RePay does not provide liquidation protection.
+          Keeper execution is not guaranteed. The collateral guard reduces liquidation risk but cannot remove it.
         </p>
       </Card>
     </div>

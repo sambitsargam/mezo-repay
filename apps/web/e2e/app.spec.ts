@@ -52,8 +52,29 @@ test.describe("live mode without a wallet", () => {
     await page.goto(`/app?view=${DEMO_ACCOUNT}`);
     await expect(page.getByText("Read-only live view")).toBeVisible();
     await expect(page.getByText("Outstanding debt", { exact: false })).toBeVisible();
-    await expect(page.getByText("Customer payment").first()).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByText("Loan repayment").first()).toBeVisible({ timeout: 40_000 });
     await expect(page.locator('a[href*="explorer.test.mezo.org/tx/0x"]').first()).toBeVisible();
+    await page.goto(`/app/activity?view=${DEMO_ACCOUNT}`);
+    await expect(page.getByText("Customer payment").first()).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByText(/Protected · ratio 158\.\d% → 177\.\d%/)).toBeVisible();
+  });
+
+  test("loan page shows the live collateral guard of the demo account", async ({ page }) => {
+    await page.goto(`/app/loan?view=${DEMO_ACCOUNT}`);
+    await expect(page.getByRole("heading", { name: "Collateral guard" })).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByText("170% → 180%")).toBeVisible();
+    await expect(page.getByText("Protected so far")).toBeVisible();
+    await noHorizontalOverflow(page);
+  });
+
+  test("hosted keeper status is built from public data and never exposes a key", async ({ request }) => {
+    const res = await request.get("/api/keeper/status", { timeout: 60_000 });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.mode).toBe("live");
+    expect(body.keeperAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(body.accounts).toContain(DEMO_ACCOUNT);
+    expect(Object.keys(body).join(",")).not.toMatch(/key|secret|private/i);
   });
 
   test("RPC unavailable shows an error instead of fixtures", async ({ page }) => {
@@ -162,7 +183,7 @@ test.describe("live mode with a wallet", () => {
     await page.goto("/app/automation");
     await page.getByRole("button", { name: /Connect/ }).first().click();
     await expect(page.getByText("Manual fallback")).toBeVisible({ timeout: 40_000 });
-    await expect(page.getByText("Not configured")).toBeVisible();
+    await expect(page.getByText("GitHub Actions schedule", { exact: false })).toBeVisible({ timeout: 40_000 });
     const btn = page.getByRole("button", { name: /Repay .* now/ });
     if ((await btn.getAttribute("title")) !== null) await expect(btn).toBeDisabled();
   });

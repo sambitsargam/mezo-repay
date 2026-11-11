@@ -37,6 +37,8 @@ export interface NetworkDeployment {
   repay: RePayDeployment | null;
   /** Earlier deployments, kept for evidence links. Not used for discovery. */
   previous?: RePayDeployment[];
+  /** Public facts about the hosted keeper (address only; its key never leaves the host's secret store). */
+  keeper?: { address: Address; host: string; intervalSeconds: number; workflow: string; workflowApi: string };
 }
 
 /** Shared deployment registry used by the web app, keeper, smoke tests, and docs. */
