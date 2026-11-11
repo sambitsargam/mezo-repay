@@ -25,11 +25,18 @@ export const DISCOVERY_CHUNK = 10_000n;
 export const RECEIPT_TIMEOUT_MS = 120_000;
 
 export type Decision =
+  | { action: "protect"; repay: bigint; topUp: bigint }
   | { action: "execute"; amount: bigint }
   | { action: "skip"; reason: string };
 
-/** Pure decision from on-chain state. The contract re-checks everything; this only avoids wasted gas. */
+/**
+ * Pure decision from on-chain state. The contract re-checks everything; this only avoids wasted gas.
+ * Loan safety comes first: if the collateral guard can act, protect before routine repayment.
+ */
 export function decide(s: AccountSnapshot): Decision {
+  if (s.guardStatus === "Protectable" && (s.guardRepay > 0n || s.guardTopUp > 0n)) {
+    return { action: "protect", repay: s.guardRepay, topUp: s.guardTopUp };
+  }
   if (s.previewStatus !== "Ready" || s.previewAmount === 0n) {
     return { action: "skip", reason: s.previewStatus };
   }
@@ -108,6 +115,8 @@ export class Keeper {
         owner: snap.owner,
         previewStatus: snap.previewStatus,
         previewAmount: snap.previewAmount.toString(),
+        guardStatus: snap.guardStatus,
+        ratio: snap.ratio.toString(),
         pendingRepayment: snap.pendingRepayment.toString(),
         debt: snap.debt.toString(),
         checkedAt: new Date().toISOString(),
@@ -118,16 +127,24 @@ export class Keeper {
         log("info", "waiting", { account, reason: decision.reason, why: REPAYMENT_STATUS_COPY[snap.previewStatus].title });
         return;
       }
-      await this.execute(account, snap, decision.amount);
+      if (decision.action === "protect") await this.send(account, snap, "protect", decision.repay, decision.topUp);
+      else await this.send(account, snap, "executeRepayment", decision.amount, 0n);
     } finally {
       this.inFlight.delete(account);
     }
   }
 
-  private async execute(account: Address, snap: AccountSnapshot, amount: bigint): Promise<void> {
+  private async send(
+    account: Address,
+    snap: AccountSnapshot,
+    functionName: "executeRepayment" | "protect",
+    amount: bigint,
+    topUp: bigint,
+  ): Promise<void> {
     const status = this.state.statuses[account]!;
-    // Hints for the post-repayment position. Stale hints only cost gas.
-    const hints = await computeHints(this.pub, this.deployment.protocol, snap.collateral, snap.debt - amount).catch(
+    const kind = functionName === "protect" ? "protected" : "executed";
+    // Hints for the post-action position. Stale hints only cost gas.
+    const hints = await computeHints(this.pub, this.deployment.protocol, snap.collateral + topUp, snap.debt - amount).catch(
       () => ({ upper: "0x0000000000000000000000000000000000000000" as Address, lower: "0x0000000000000000000000000000000000000000" as Address }),
     );
     const caller = this.wallet?.account.address ?? snap.owner;
@@ -136,12 +153,12 @@ export class Keeper {
       const sim = await this.pub.simulateContract({
         address: account,
         abi: repayAccountAbi,
-        functionName: "executeRepayment",
+        functionName,
         args: [hints.upper, hints.lower],
         account: caller,
       });
       request = sim.request;
-      log("info", "simulation ok", { account, amount, simulatedReturn: sim.result });
+      log("info", "simulation ok", { account, functionName, amount, topUp, simulatedReturn: sim.result });
     } catch (e) {
       status.lastAction = { kind: "failed", at: new Date().toISOString(), error: errorMessage(e) };
       log("warn", "simulation reverted; not sending", { account, error: errorMessage(e) });
@@ -149,12 +166,12 @@ export class Keeper {
     }
     if (this.mode === "dry-run" || !this.wallet) {
       status.lastAction = { kind: "simulated", at: new Date().toISOString(), amount: amount.toString() };
-      log("info", "dry-run: would execute", { account, amount });
+      log("info", `dry-run: would call ${functionName}`, { account, amount, topUp });
       return;
     }
     const hash: Hash = await this.wallet.writeContract({ ...request, account: this.wallet.account, chain: this.wallet.chain });
-    log("info", "submitted", { account, amount, txHash: hash });
-    status.lastAction = { kind: "executed", at: new Date().toISOString(), txHash: hash, amount: amount.toString() };
+    log("info", "submitted", { account, functionName, amount, topUp, txHash: hash });
+    status.lastAction = { kind, at: new Date().toISOString(), txHash: hash, amount: amount.toString() };
     saveState(this.stateDir, this.state);
     // A null receipt is not a failure; wait with a bounded timeout and never resubmit automatically.
     try {
@@ -162,6 +179,19 @@ export class Keeper {
       if (receipt.status !== "success") {
         status.lastAction = { kind: "failed", at: new Date().toISOString(), txHash: hash, error: "reverted on-chain" };
         log("error", "execution reverted on-chain", { account, txHash: hash });
+        return;
+      }
+      if (functionName === "protect") {
+        const pe = parseEventLogs({ abi: repayAccountAbi, logs: receipt.logs, eventName: "CollateralProtected" })[0];
+        status.lastAction = { kind, at: new Date().toISOString(), txHash: hash, amount: (pe?.args.repaid ?? amount).toString() };
+        log("info", "protection confirmed", {
+          account,
+          txHash: hash,
+          repaid: pe?.args.repaid,
+          collateralAdded: pe?.args.collateralAdded,
+          ratioBefore: pe?.args.ratioBefore,
+          ratioAfter: pe?.args.ratioAfter,
+        });
         return;
       }
       const ev = parseEventLogs({ abi: repayAccountAbi, logs: receipt.logs, eventName: "RepaymentExecuted" })[0];

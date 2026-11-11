@@ -105,6 +105,40 @@ export const REPAYMENT_STATUS_COPY: Record<RepaymentStatus, { title: string; det
   },
 };
 
+/** Mirrors RePayAccount.GuardStatus. Ordered exactly like the Solidity enum. */
+export const GUARD_STATUS = ["Disabled", "NoActiveLoan", "PriceUnavailable", "Healthy", "Protectable", "NoResources"] as const;
+export type GuardStatus = (typeof GUARD_STATUS)[number];
+
+export function guardStatus(code: number): GuardStatus {
+  const s = GUARD_STATUS[code];
+  if (!s) throw new RangeError(`unknown guard status ${code}`);
+  return s;
+}
+
+export const GUARD_STATUS_COPY: Record<GuardStatus, { title: string; detail: string }> = {
+  Disabled: { title: "Guard off", detail: "Set a trigger ratio to let RePay protect the loan when the BTC price falls." },
+  NoActiveLoan: { title: "No active loan", detail: "The guard only acts on an open Trove." },
+  PriceUnavailable: { title: "Price unavailable", detail: "Mezo's price feed did not answer. The guard waits for a fresh price." },
+  Healthy: { title: "Above trigger", detail: "The collateral ratio is above your trigger. Nothing to do." },
+  Protectable: {
+    title: "Below trigger: protect now",
+    detail: "Pending MUSD is applied to the debt first, then buffer BTC is added as collateral, aiming for your target ratio.",
+  },
+  NoResources: {
+    title: "Below trigger, nothing to protect with",
+    detail: "No pending MUSD and no buffer BTC. Fund the buffer or add collateral yourself.",
+  },
+};
+
+/** Ratio as basis points of 100% (1e18 → 10000). */
+export function ratioToBps(ratio: bigint): number {
+  return Number((ratio * 10_000n) / WAD);
+}
+
+export function bpsToRatio(bps: number): bigint {
+  return (BigInt(Math.round(bps)) * WAD) / 10_000n;
+}
+
 export const TROVE_STATUS = ["nonExistent", "active", "closedByOwner", "closedByLiquidation", "closedByRedemption"] as const;
 export type TroveStatus = (typeof TROVE_STATUS)[number];
 

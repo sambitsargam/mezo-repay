@@ -194,3 +194,17 @@ describe("registry", () => {
     expect(getDeployment(31612)).toBeUndefined();
   });
 });
+
+describe("guard helpers", () => {
+  it("maps guard status codes in Solidity enum order", async () => {
+    const { guardStatus, GUARD_STATUS } = await import("../src/accounting");
+    expect(GUARD_STATUS).toEqual(["Disabled", "NoActiveLoan", "PriceUnavailable", "Healthy", "Protectable", "NoResources"]);
+    expect(guardStatus(4)).toBe("Protectable");
+    expect(() => guardStatus(6)).toThrow(RangeError);
+  });
+  it("converts ratios and basis points both ways", async () => {
+    const { ratioToBps, bpsToRatio } = await import("../src/accounting");
+    expect(bpsToRatio(16_000)).toBe(16n * 10n ** 17n);
+    expect(ratioToBps(1_625n * 10n ** 15n)).toBe(16_250);
+  });
+});

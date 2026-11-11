@@ -7,7 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import {IBorrowerOperations, ITroveManager, ICollSurplusPool} from "./interfaces/IMezo.sol";
+import {IBorrowerOperations, ITroveManager, ICollSurplusPool, IPriceFeed} from "./interfaces/IMezo.sol";
 
 /// @title RePayAccount
 /// @notice Owner-controlled account that owns a Mezo MUSD Trove and routes a configured share of
@@ -21,13 +21,23 @@ import {IBorrowerOperations, ITroveManager, ICollSurplusPool} from "./interfaces
 ///
 /// Authority:
 ///   - Owner (fixed at creation): every policy, loan, and withdrawal action.
-///   - Anyone (keeper): `executeRepayment` only. It can only burn this account's own pending
-///     allocation against this account's own Trove, within the owner's policy, and pays no fee.
+///   - Anyone (keeper): `executeRepayment` and `protect`. They can only burn this account's own
+///     pending allocation against this account's own Trove (and, for `protect`, move the owner's
+///     BTC collateral buffer into the same Trove), within the owner's settings, and pay no fee.
+///
+/// Collateral guard (v2):
+///   When the Trove's collateral ratio falls below the owner's trigger, `protect` first steers pending
+///   MUSD into repayment (ignoring cadence limits, never operating cash), then tops up collateral from
+///   the owner-funded BTC buffer, aiming for the owner's target ratio.
 contract RePayAccount is Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint16 public constant BPS = 10_000;
     uint32 public constant MAX_COOLDOWN = 30 days;
+    string public constant VERSION = "2";
+    /// @dev Mezo's minimum collateral ratio (110%). A guard trigger must sit above it.
+    uint256 public constant MEZO_MCR = 1.1e18;
+    uint256 public constant MAX_GUARD_RATIO = 10e18;
 
     struct Policy {
         uint16 repaymentBps; // share of each tracked payment allocated to repayment
@@ -50,12 +60,28 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         BelowMinExecution
     }
 
+    /// @notice Collateral guard settings. Ratios use 1e18 = 100%. trigger == 0 disables the guard.
+    struct Guard {
+        uint64 triggerRatio; // protect when collateral ratio is below this
+        uint64 targetRatio; // aim for this ratio after protecting
+    }
+
+    enum GuardStatus {
+        Disabled,
+        NoActiveLoan,
+        PriceUnavailable,
+        Healthy,
+        Protectable,
+        NoResources
+    }
+
     // --- Immutable protocol wiring (shared by every clone via the implementation bytecode) ---
     address public immutable factory;
     IBorrowerOperations public immutable borrowerOperations;
     ITroveManager public immutable troveManager;
     ICollSurplusPool public immutable collSurplusPool;
     IERC20 public immutable musd;
+    IPriceFeed public immutable priceFeed;
 
     // --- Account state ---
     address public owner;
@@ -73,6 +99,11 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     uint256 public totalReleased; // pending allocation moved back to operating cash by the owner
     uint64 public paymentCount;
     uint64 public lastExecutionAt;
+
+    Guard internal _guard;
+    uint256 public collateralBuffer; // owner BTC reserved for guard top-ups; <= address(this).balance
+    uint256 public totalProtectRepaid; // portion of totalRepaid done by the guard
+    uint256 public totalProtectTopUp; // BTC moved from the buffer into the Trove by the guard
 
     // --- Events ---
     event Initialized(address indexed owner, Policy policy);
@@ -105,6 +136,12 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     event PendingReleased(uint256 amount);
     event OperatingWithdrawn(address indexed to, uint256 amount);
     event BtcWithdrawn(address indexed to, uint256 amount);
+    event GuardUpdated(Guard guard);
+    event BufferFunded(uint256 amount, uint256 buffer);
+    event BufferWithdrawn(address indexed to, uint256 amount, uint256 buffer);
+    event CollateralProtected(
+        address indexed executor, uint256 ratioBefore, uint256 ratioAfter, uint256 repaid, uint256 collateralAdded
+    );
 
     // --- Errors ---
     error NotOwner();
@@ -122,6 +159,10 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     error InsufficientFundsToClose(uint256 available, uint256 required);
     error UnexpectedBurn(uint256 expected, uint256 actual);
     error BtcTransferFailed();
+    error InvalidGuard();
+    error GuardNotActionable(GuardStatus status);
+    error InsufficientBuffer(uint256 available, uint256 requested);
+    error InsufficientFreeBtc(uint256 available, uint256 requested);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -140,6 +181,9 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         address token = IBorrowerOperations(_borrowerOperations).musd();
         if (token == address(0)) revert ZeroAddress();
         musd = IERC20(token);
+        address feed = IBorrowerOperations(_borrowerOperations).priceFeed();
+        if (feed == address(0)) revert ZeroAddress();
+        priceFeed = IPriceFeed(feed);
         _disableInitializers();
     }
 
@@ -472,9 +516,13 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         emit PendingReleased(amount);
     }
 
+    /// @notice Withdraw BTC held by the account outside the guard buffer (e.g. collateral returned
+    ///         by close, withdrawals, or surplus claims).
     function withdrawBtc(address to, uint256 amount) external onlyOwner nonReentrant {
         if (to == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
+        uint256 free = freeBtc();
+        if (amount > free) revert InsufficientFreeBtc(free, amount);
         _sendBtc(to, amount);
         emit BtcWithdrawn(to, amount);
     }
@@ -482,6 +530,114 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     function _sendBtc(address to, uint256 amount) internal {
         (bool ok,) = to.call{value: amount}("");
         if (!ok) revert BtcTransferFailed();
+    }
+
+    // =====================================================================================
+    // Collateral guard
+    // =====================================================================================
+
+    function guard() external view returns (Guard memory) {
+        return _guard;
+    }
+
+    /// @notice BTC held by the account that is not reserved for the guard.
+    function freeBtc() public view returns (uint256) {
+        return address(this).balance - collateralBuffer;
+    }
+
+    /// @notice Set the guard. (0, 0) disables it. Otherwise MCR < trigger <= target <= 1000%.
+    function setGuard(Guard calldata g) external onlyOwner {
+        if (g.triggerRatio == 0) {
+            if (g.targetRatio != 0) revert InvalidGuard();
+        } else if (g.triggerRatio <= MEZO_MCR || g.targetRatio < g.triggerRatio || g.targetRatio > MAX_GUARD_RATIO) {
+            revert InvalidGuard();
+        }
+        _guard = g;
+        emit GuardUpdated(g);
+    }
+
+    /// @notice Reserve BTC for collateral top-ups.
+    function fundBuffer() external payable onlyOwner {
+        if (msg.value == 0) revert ZeroAmount();
+        collateralBuffer += msg.value;
+        emit BufferFunded(msg.value, collateralBuffer);
+    }
+
+    function withdrawBuffer(address to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
+        if (amount > collateralBuffer) revert InsufficientBuffer(collateralBuffer, amount);
+        collateralBuffer -= amount;
+        _sendBtc(to, amount);
+        emit BufferWithdrawn(to, amount, collateralBuffer);
+    }
+
+    /// @dev Price from Mezo's feed; 0 if the feed reverts (e.g. stale oracle), so views never break.
+    function _price() internal view returns (uint256) {
+        try priceFeed.fetchPrice() returns (uint256 p) {
+            return p;
+        } catch {
+            return 0;
+        }
+    }
+
+    /// @notice What `protect` would do now.
+    /// @return ratio   current collateral ratio (1e18 = 100%), 0 if unknown
+    /// @return repay   pending MUSD that would be repaid
+    /// @return topUp   buffer BTC that would be added as collateral
+    /// @return status  whether protecting is possible
+    function guardPreview() public view returns (uint256 ratio, uint256 repay, uint256 topUp, GuardStatus status) {
+        Guard memory g = _guard;
+        if (g.triggerRatio == 0) return (0, 0, 0, GuardStatus.Disabled);
+        (ITroveManager.Status loan, uint256 debt, uint256 coll, uint256 maxRepayable) = loanState();
+        if (loan != ITroveManager.Status.active) return (0, 0, 0, GuardStatus.NoActiveLoan);
+        uint256 price = _price();
+        if (price == 0) return (0, 0, 0, GuardStatus.PriceUnavailable);
+        ratio = (coll * price) / debt;
+        if (ratio >= g.triggerRatio) return (ratio, 0, 0, GuardStatus.Healthy);
+
+        // 1. Steer pending MUSD into repayment, toward the debt at which coll alone meets the target.
+        uint256 targetDebt = (coll * price) / g.targetRatio;
+        uint256 needed = debt > targetDebt ? debt - targetDebt : 0;
+        repay = _min(_min(needed, pendingRepayment), maxRepayable);
+
+        // 2. Top up collateral from the buffer for whatever gap remains (rounded up).
+        uint256 debtAfter = debt - repay;
+        uint256 requiredColl = (uint256(g.targetRatio) * debtAfter + price - 1) / price;
+        if (requiredColl > coll) topUp = _min(requiredColl - coll, collateralBuffer);
+
+        status = (repay == 0 && topUp == 0) ? GuardStatus.NoResources : GuardStatus.Protectable;
+    }
+
+    /// @notice Permissionless: if the collateral ratio is below the owner's trigger, repay from
+    ///         pending (bypassing cadence limits, never operating cash) and add buffer BTC as
+    ///         collateral, aiming for the owner's target ratio.
+    function protect(address upperHint, address lowerHint)
+        external
+        nonReentrant
+        returns (uint256 repaid, uint256 collateralAdded)
+    {
+        uint256 ratioBefore;
+        GuardStatus status;
+        (ratioBefore, repaid, collateralAdded, status) = guardPreview();
+        if (status != GuardStatus.Protectable) revert GuardNotActionable(status);
+        if (repaid > 0) {
+            pendingRepayment -= repaid;
+            totalProtectRepaid += repaid;
+            _repay(repaid, upperHint, lowerHint, true, true);
+        }
+        if (collateralAdded > 0) {
+            collateralBuffer -= collateralAdded;
+            totalProtectTopUp += collateralAdded;
+            borrowerOperations.addColl{value: collateralAdded}(upperHint, lowerHint);
+            emit CollateralAdded(collateralAdded);
+        }
+        (, uint256 debt, uint256 coll,) = loanState();
+        emit CollateralProtected(msg.sender, ratioBefore, (coll * _price()) / debt, repaid, collateralAdded);
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
     }
 
     /// @notice Single-call snapshot for frontends and the keeper.
@@ -509,6 +665,15 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         uint256 collateralSurplus;
         uint256 previewAmount;
         uint8 previewStatus;
+        Guard guard;
+        uint256 collateralBuffer;
+        uint256 price;
+        uint256 ratio;
+        uint256 guardRepay;
+        uint256 guardTopUp;
+        uint8 guardStatus;
+        uint256 totalProtectRepaid;
+        uint256 totalProtectTopUp;
     }
 
     function snapshot() external view returns (Snapshot memory s) {
@@ -535,5 +700,14 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         Status ps;
         (s.previewAmount, ps) = previewRepayment();
         s.previewStatus = uint8(ps);
+        s.guard = _guard;
+        s.collateralBuffer = collateralBuffer;
+        s.price = _price();
+        if (s.loanStatus == uint8(ITroveManager.Status.active) && s.debt > 0) s.ratio = (s.collateral * s.price) / s.debt;
+        GuardStatus gs;
+        (, s.guardRepay, s.guardTopUp, gs) = guardPreview();
+        s.guardStatus = uint8(gs);
+        s.totalProtectRepaid = totalProtectRepaid;
+        s.totalProtectTopUp = totalProtectTopUp;
     }
 }

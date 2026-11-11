@@ -59,8 +59,11 @@ contract MezoForkTest is Test {
     ///      ~80,595 at research time; override with MEZO_FORK_BTC_PRICE). Everything else
     ///      (BorrowerOperations, TroveManager, SortedTroves, MUSD) is the real deployed bytecode.
     function _mockOraclePrecompile() internal {
+        _mockOracleAt(int256(vm.envOr("MEZO_FORK_BTC_PRICE", uint256(80_000e18))));
+    }
+
+    function _mockOracleAt(int256 price) internal {
         address oracle = 0x7b7c000000000000000000000000000000000015;
-        int256 price = int256(vm.envOr("MEZO_FORK_BTC_PRICE", uint256(80_000e18)));
         vm.mockCall(oracle, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
         vm.mockCall(
             oracle,
@@ -119,5 +122,53 @@ contract MezoForkTest is Test {
         account.closeLoan();
         assertEq(uint8(tm.getTroveStatus(address(account))), 2);
         assertEq(address(account).balance, coll);
+    }
+
+    /// Collateral guard against real Mezo contracts: a BTC price drop pushes the Trove below the owner's
+    /// trigger; a keeper's `protect` repays from pending MUSD and tops up collateral from the buffer.
+    function test_fork_guardProtectsAfterPriceDrop() public {
+        if (!enabled) {
+            vm.skip(true);
+            return;
+        }
+        uint256 borrowAmt = 2400e18;
+        uint256 coll = 0.06 ether; // ~180% at 80,000
+        uint256 expectedDebt = borrowAmt + bo.getBorrowingFee(borrowAmt) + tm.MUSD_GAS_COMPENSATION();
+        (address u, address l) = _hints(coll, expectedDebt);
+        vm.startPrank(owner);
+        account.openLoan{value: coll}(borrowAmt, u, l);
+        account.setGuard(RePayAccount.Guard(1.6e18, 1.8e18));
+        account.fundBuffer{value: 0.05 ether}();
+        vm.stopPrank();
+
+        vm.startPrank(customer);
+        (u, l) = _hints(0.08 ether, expectedDebt);
+        bo.openTrove{value: 0.08 ether}(2000e18, u, l);
+        musd.approve(address(account), 500e18);
+        account.pay(500e18, bytes32("INV-GUARD"));
+        vm.stopPrank();
+
+        (,,, RePayAccount.GuardStatus st) = account.guardPreview();
+        assertEq(uint8(st), uint8(RePayAccount.GuardStatus.Healthy));
+
+        _mockOracleAt(62_000e18); // ratio ≈ 140%
+        uint256 before;
+        uint256 repay;
+        uint256 topUp;
+        (before, repay, topUp, st) = account.guardPreview();
+        console2.log("ratio before", before);
+        assertEq(uint8(st), uint8(RePayAccount.GuardStatus.Protectable));
+        assertEq(repay, 150e18, "all pending steered to repayment");
+        assertGt(topUp, 0);
+
+        uint256 op = account.operatingCash();
+        account.protect(address(0), address(0));
+        (, uint256 debt, uint256 c,) = account.loanState();
+        uint256 afterRatio = (c * 62_000e18) / debt;
+        console2.log("ratio after", afterRatio);
+        assertGe(afterRatio, 1.8e18);
+        assertEq(account.operatingCash(), op);
+        assertEq(account.pendingRepayment(), 0);
+        assertEq(c, coll + topUp, "real Trove collateral increased");
     }
 }

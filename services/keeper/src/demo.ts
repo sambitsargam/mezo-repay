@@ -3,9 +3,14 @@
  * docs/evidence/live-run.json with an explicit type: "transaction" | "read" | "simulation".
  *
  *   pnpm --filter @repay/keeper demo <step>
- *   steps: status | fund-gas | create | open | customer-trove | pay | unauthorized | read
+ *   steps: status | fund-gas | create | open | customer-trove | pay | pay-permit | keeper | guard |
+ *          fund-buffer | protect | add-collateral | withdraw-collateral | close | withdraw-btc | unauthorized | read
  *
- * Uses DEPLOYER_PRIVATE_KEY as the account owner and CUSTOMER_PRIVATE_KEY as a separate payer.
+ * EVIDENCE=v1 targets the first deployment's record (docs/evidence/live-run.json); the default is the
+ * current deployment's record (docs/evidence/live-run-v2.json).
+ *
+ * Uses DEPLOYER_PRIVATE_KEY as the account owner, CUSTOMER_PRIVATE_KEY as a separate payer, and
+ * KEEPER_PRIVATE_KEY for permissionless keeper calls.
  * Mezo testnet only; refuses any other chain.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -45,7 +50,7 @@ import { errorMessage } from "./keeper";
 
 loadDotEnv([resolve(".env"), resolve("../../.env")]);
 const args = process.argv.slice(2).filter((a) => a !== "--");
-const EVIDENCE = resolve("../../docs/evidence/live-run.json");
+const EVIDENCE = resolve(process.env.EVIDENCE === "v1" ? "../../docs/evidence/live-run.json" : "../../docs/evidence/live-run-v2.json");
 const rpc = process.env.MEZO_RPC_URL ?? "https://rpc.test.mezo.org";
 
 const pub = createPublicClient({ chain: mezoTestnet, transport: http(rpc, { retryCount: 3 }) });
@@ -60,7 +65,9 @@ function key(name: string): Hex {
 }
 const ownerAcct = privateKeyToAccount(key("DEPLOYER_PRIVATE_KEY"));
 const customerAcct = privateKeyToAccount(key("CUSTOMER_PRIVATE_KEY"));
-const keeperAddr = privateKeyToAccount(key("KEEPER_PRIVATE_KEY")).address;
+const keeperAcct = privateKeyToAccount(key("KEEPER_PRIVATE_KEY"));
+const keeperAddr = keeperAcct.address;
+const keeperWallet = createWalletClient({ account: keeperAcct, chain: mezoTestnet, transport: http(rpc) });
 const owner = createWalletClient({ account: ownerAcct, chain: mezoTestnet, transport: http(rpc) });
 const customer = createWalletClient({ account: customerAcct, chain: mezoTestnet, transport: http(rpc) });
 
@@ -129,6 +136,24 @@ function requireAccount(): Address {
   return ev.account;
 }
 
+/** Minimal reads that work for every deployed version (v1 accounts lack the v2 snapshot fields). */
+async function basicState(account: Address) {
+  const [loan, pending, operating, btc] = await Promise.all([
+    pub.readContract({ address: account, abi: repayAccountAbi, functionName: "loanState" }),
+    pub.readContract({ address: account, abi: repayAccountAbi, functionName: "pendingRepayment" }),
+    pub.readContract({ address: account, abi: repayAccountAbi, functionName: "operatingCash" }),
+    pub.getBalance({ address: account }),
+  ]);
+  return {
+    loanStatus: ["nonExistent", "active", "closedByOwner", "closedByLiquidation", "closedByRedemption"][loan[0]]!,
+    debt: formatMusd(loan[1], 4),
+    collateral: formatBtc(loan[2]),
+    pendingRepayment: formatMusd(pending),
+    operatingCash: formatMusd(operating),
+    btcHeldByAccount: formatBtc(btc),
+  };
+}
+
 async function snapshotData(account: Address) {
   const s = await readAccountSnapshot(pub, account);
   const p = await readProtocolParams(pub, d.protocol);
@@ -149,9 +174,15 @@ async function snapshotData(account: Address) {
       maxRepayable: formatMusd(s.maxRepayable),
       previewStatus: s.previewStatus,
       previewAmount: formatMusd(s.previewAmount),
+      guardStatus: s.guardStatus,
+      guard: s.guard.triggerRatio ? `${formatRatio(s.guard.triggerRatio, 0)} → ${formatRatio(s.guard.targetRatio, 0)}` : "off",
+      collateralBuffer: formatBtc(s.collateralBuffer),
+      btcHeldByAccount: formatBtc(s.btcBalance),
     },
   };
 }
+
+const ZERO = "0x0000000000000000000000000000000000000000" as const;
 
 const steps: Record<string, () => Promise<void>> = {
   async status() {
@@ -398,6 +429,105 @@ const steps: Record<string, () => Promise<void>> = {
     ev.steps.push({ step: "read-after-capital", type: "read", at: new Date().toISOString(), summary: "Pending repayment now exceeds the protocol's repayable headroom", data });
     save();
     console.log(data);
+  },
+
+  async keeper() {
+    // One keeper pass for this account, exactly as services/keeper would do it: protect first, then repay.
+    const account = requireAccount();
+    const s = await readAccountSnapshot(pub, account);
+    const fn = s.guardStatus === "Protectable" ? "protect" : s.previewStatus === "Ready" ? "executeRepayment" : null;
+    if (!fn) throw new Error(`nothing to do: guard ${s.guardStatus}, repayment ${s.previewStatus}`);
+    const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: fn, args: [ZERO, ZERO], account: keeperAddr });
+    const hash = await keeperWallet.writeContract(sim.request);
+    const r = await recordTx(fn === "protect" ? "keeper-protect" : "keeper-execute", hash, fn === "protect" ? "Keeper called protect (permissionless)" : "Keeper executed the pending repayment (permissionless, no fee)");
+    const last = ev.steps[ev.steps.length - 1]!;
+    if (fn === "protect") {
+      const pe = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "CollateralProtected" })[0]!;
+      last.summary = `Keeper called protect: repaid ${formatMusd(pe.args.repaid)} from pending and added ${formatBtc(pe.args.collateralAdded)} from the buffer`;
+      last.data = { ratioBefore: formatRatio(pe.args.ratioBefore, 2), ratioAfter: formatRatio(pe.args.ratioAfter, 2), repaid: formatMusd(pe.args.repaid, 4), collateralAdded: formatBtc(pe.args.collateralAdded) };
+    } else {
+      const re = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "RepaymentExecuted" })[0]!;
+      last.summary = `Keeper repaid ${formatMusd(re.args.amount)} from pending (permissionless, no fee)`;
+      last.data = { debtBefore: formatMusd(re.args.debtBefore, 4), debtAfter: formatMusd(re.args.debtAfter, 4) };
+    }
+    save();
+    const { data } = await snapshotData(account);
+    ev.steps.push({ step: `read-after-${last.step}`, type: "read", at: new Date().toISOString(), summary: "Account state after the keeper call", data });
+    save();
+    console.log(data);
+  },
+
+  async guard() {
+    const account = requireAccount();
+    const trigger = parseEther(args[1] ?? "1.6");
+    const target = parseEther(args[2] ?? "1.8");
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "setGuard", args: [{ triggerRatio: trigger, targetRatio: target }] });
+    await recordTx("owner-set-guard", hash, `Owner set the collateral guard: protect below ${formatRatio(trigger, 0)}, aim for ${formatRatio(target, 0)}`);
+    const { data } = await snapshotData(account);
+    ev.steps.push({ step: "read-after-guard", type: "read", at: new Date().toISOString(), summary: "Guard status after setting it", data });
+    save();
+    console.log(data);
+  },
+
+  async "fund-buffer"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "0.002");
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "fundBuffer", value: amount });
+    await recordTx("owner-fund-buffer", hash, `Owner reserved ${formatBtc(amount)} in the account as the guard's collateral buffer`);
+  },
+
+  async protect() {
+    await steps.keeper!();
+  },
+
+  async "add-collateral"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "0.001");
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "addCollateral", args: [ZERO, ZERO], value: amount });
+    await recordTx("owner-add-collateral", hash, `Owner added ${formatBtc(amount)} collateral to the account's Trove (BorrowerOperations.addColl)`);
+    console.log(await basicState(account));
+  },
+
+  async "withdraw-collateral"() {
+    const account = requireAccount();
+    const amount = parseEther(args[1] ?? "0.001");
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "withdrawCollateral", args: [amount, ownerAcct.address, ZERO, ZERO] });
+    await recordTx("owner-withdraw-collateral", hash, `Owner withdrew ${formatBtc(amount)} collateral from the Trove to the owner wallet (BorrowerOperations.withdrawColl)`);
+    console.log(await basicState(account));
+  },
+
+  async close() {
+    const account = requireAccount();
+    const before = await basicState(account);
+    console.log("before", before);
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "closeLoan" });
+    const r = await recordTx("owner-close-loan", hash, "Owner closed the account's Trove (BorrowerOperations.closeTrove); pending repayment used first, then operating cash");
+    const lc = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "LoanClosed" })[0]!;
+    ev.steps[ev.steps.length - 1]!.data = {
+      debtRepaid: formatMusd(lc.args.debtRepaid, 4),
+      fromPending: formatMusd(lc.args.fromPending, 4),
+      fromOperating: formatMusd(lc.args.fromOperating, 4),
+      collateralReturned: formatBtc(lc.args.collateralReturned),
+    };
+    save();
+    const after = await basicState(account);
+    ev.steps.push({ step: "read-after-close", type: "read", at: new Date().toISOString(), summary: "Account state after closing the loan", data: after });
+    save();
+    console.log("after", after);
+  },
+
+  async "withdraw-btc"() {
+    const account = requireAccount();
+    const bal = await pub.getBalance({ address: account });
+    let buffer = 0n;
+    try {
+      buffer = await pub.readContract({ address: account, abi: repayAccountAbi, functionName: "collateralBuffer" });
+    } catch {
+      /* v1 accounts have no buffer */
+    }
+    const amount = args[1] ? parseEther(args[1]) : bal - buffer;
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "withdrawBtc", args: [ownerAcct.address, amount] });
+    await recordTx("owner-withdraw-btc", hash, `Owner withdrew ${formatBtc(amount)} BTC (returned collateral) from the account to the owner wallet`);
   },
 
   async unauthorized() {

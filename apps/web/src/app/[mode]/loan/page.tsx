@@ -9,6 +9,7 @@ import { AmountInput } from "@/components/PolicyForm";
 import { TxDialog } from "@/components/TxDialog";
 import { CloseLoanButton, ExecuteRepaymentButton } from "@/components/actions";
 import { RatioGauge } from "@/components/motion";
+import { GuardCard } from "@/components/GuardCard";
 import { Amount, Card, CardHeader, DataError, KeyValue, Notice, PageHeader, Pill, Skeleton, Stat, cx } from "@/components/ui";
 
 export default function LoanPage() {
@@ -112,6 +113,7 @@ function Loan() {
               </div>
             </Card>
           </div>
+          <GuardCard snap={s} />
         </>
       )}
 
@@ -127,13 +129,13 @@ function Loan() {
             <div className="space-y-4 p-5">
               <KeyValue
                 rows={[
-                  ["BTC held by account", <Amount key="a" value={s.btcBalance} unit="BTC" digits={6} />],
+                  ["BTC held by account (excl. guard buffer)", <Amount key="a" value={s.btcBalance - s.collateralBuffer} unit="BTC" digits={6} />],
                   ["Collateral surplus claimable from Mezo", <Amount key="b" value={s.collateralSurplus} unit="BTC" digits={6} />],
                   ["Pending repayment (can be released)", <Amount key="c" value={s.pendingRepayment} />],
                   ["Operating cash", <Amount key="d" value={s.operatingCash} />],
                 ]}
               />
-              <RecoveryActions address={s.address} btc={s.btcBalance} surplus={s.collateralSurplus} pending={s.pendingRepayment} />
+              <RecoveryActions address={s.address} btc={s.btcBalance - s.collateralBuffer} surplus={s.collateralSurplus} pending={s.pendingRepayment} />
             </div>
           </Card>
           <Card>
@@ -165,8 +167,9 @@ function Loan() {
             />
           </div>
           <p className="border-t border-line px-5 py-3 text-[13px] text-ink-muted">
-            Risk: if BTC falls so the ratio drops below 110%, anyone can liquidate the Trove and the collateral is lost. RePay does not monitor or prevent
-            liquidation, and never sells collateral to make repayments.
+            Risk: if BTC falls so the ratio drops below 110%, anyone can liquidate the Trove and the collateral is lost. The collateral guard above can repay
+            from pending MUSD and add buffer BTC when the ratio crosses your trigger, but it cannot prevent liquidation in a fast drop. RePay never sells
+            collateral to make repayments.
           </p>
         </Card>
       )}

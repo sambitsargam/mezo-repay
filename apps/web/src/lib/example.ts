@@ -47,6 +47,15 @@ export const exampleSnapshot: AccountSnapshot = {
   collateralSurplus: 0n,
   previewAmount: 0n,
   previewStatus: "AtMinimumDebt",
+  guard: { triggerRatio: (16n * E) / 10n, targetRatio: (18n * E) / 10n },
+  collateralBuffer: E / 100n,
+  price: m(80_000),
+  ratio: ((8n * E) / 100n) * m(80_000) / m(2_006, 41),
+  guardRepay: 0n,
+  guardTopUp: 0n,
+  guardStatus: "Healthy",
+  totalProtectRepaid: 0n,
+  totalProtectTopUp: 0n,
   blockNumber: 0n,
 };
 

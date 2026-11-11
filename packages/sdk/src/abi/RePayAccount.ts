@@ -58,6 +58,45 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_GUARD_RATIO",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MEZO_MCR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VERSION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addCollateral",
     "inputs": [
       {
@@ -167,6 +206,19 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "collateralBuffer",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "depositCapital",
     "inputs": [
       {
@@ -216,6 +268,79 @@ export const repayAccountAbi = [
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "freeBtc",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "fundBuffer",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "guard",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct RePayAccount.Guard",
+        "components": [
+          {
+            "name": "triggerRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "targetRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "guardPreview",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "ratio",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "repay",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "topUp",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum RePayAccount.GuardStatus"
       }
     ],
     "stateMutability": "view"
@@ -560,12 +685,79 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "priceFeed",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IPriceFeed"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "protect",
+    "inputs": [
+      {
+        "name": "upperHint",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "lowerHint",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "repaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "collateralAdded",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "releasePending",
     "inputs": [
       {
         "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setGuard",
+    "inputs": [
+      {
+        "name": "g",
+        "type": "tuple",
+        "internalType": "struct RePayAccount.Guard",
+        "components": [
+          {
+            "name": "triggerRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "targetRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
       }
     ],
     "outputs": [],
@@ -785,6 +977,63 @@ export const repayAccountAbi = [
             "name": "previewStatus",
             "type": "uint8",
             "internalType": "uint8"
+          },
+          {
+            "name": "guard",
+            "type": "tuple",
+            "internalType": "struct RePayAccount.Guard",
+            "components": [
+              {
+                "name": "triggerRatio",
+                "type": "uint64",
+                "internalType": "uint64"
+              },
+              {
+                "name": "targetRatio",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
+          },
+          {
+            "name": "collateralBuffer",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "price",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "ratio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "guardRepay",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "guardTopUp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "guardStatus",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "totalProtectRepaid",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalProtectTopUp",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
@@ -833,6 +1082,32 @@ export const repayAccountAbi = [
   {
     "type": "function",
     "name": "totalIncome",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalProtectRepaid",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalProtectTopUp",
     "inputs": [],
     "outputs": [
       {
@@ -928,6 +1203,24 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "withdrawBuffer",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "withdrawCollateral",
     "inputs": [
       {
@@ -1006,6 +1299,50 @@ export const repayAccountAbi = [
   },
   {
     "type": "event",
+    "name": "BufferFunded",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buffer",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "BufferWithdrawn",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buffer",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "CapitalDeposited",
     "inputs": [
       {
@@ -1044,6 +1381,43 @@ export const repayAccountAbi = [
   },
   {
     "type": "event",
+    "name": "CollateralProtected",
+    "inputs": [
+      {
+        "name": "executor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "ratioBefore",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "ratioAfter",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "repaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "collateralAdded",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "CollateralSurplusClaimed",
     "inputs": [
       {
@@ -1070,6 +1444,31 @@ export const repayAccountAbi = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GuardUpdated",
+    "inputs": [
+      {
+        "name": "guard",
+        "type": "tuple",
+        "indexed": false,
+        "internalType": "struct RePayAccount.Guard",
+        "components": [
+          {
+            "name": "triggerRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          },
+          {
+            "name": "targetRatio",
+            "type": "uint64",
+            "internalType": "uint64"
+          }
+        ]
       }
     ],
     "anonymous": false
@@ -1451,6 +1850,49 @@ export const repayAccountAbi = [
   },
   {
     "type": "error",
+    "name": "GuardNotActionable",
+    "inputs": [
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum RePayAccount.GuardStatus"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InsufficientBuffer",
+    "inputs": [
+      {
+        "name": "available",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "requested",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InsufficientFreeBtc",
+    "inputs": [
+      {
+        "name": "available",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "requested",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InsufficientFundsToClose",
     "inputs": [
       {
@@ -1512,6 +1954,11 @@ export const repayAccountAbi = [
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidGuard",
+    "inputs": []
   },
   {
     "type": "error",

@@ -24,6 +24,13 @@ interface IBorrowerOperations {
     function getBorrowingFee(uint256 _debt) external view returns (uint256);
 
     function musd() external view returns (address);
+
+    function priceFeed() external view returns (address);
+}
+
+interface IPriceFeed {
+    /// @dev BTC price in MUSD, 18 decimals. `view` on Mezo (reads the oracle precompile).
+    function fetchPrice() external view returns (uint256);
 }
 
 interface ITroveManager {

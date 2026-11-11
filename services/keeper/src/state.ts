@@ -7,10 +7,12 @@ export interface AccountStatus {
   owner: Address;
   previewStatus: string;
   previewAmount: string;
+  guardStatus?: string;
+  ratio?: string;
   pendingRepayment: string;
   debt: string;
   checkedAt: string;
-  lastAction?: { kind: "executed" | "simulated" | "skipped" | "failed"; at: string; txHash?: Hash; amount?: string; error?: string };
+  lastAction?: { kind: "executed" | "protected" | "simulated" | "skipped" | "failed"; at: string; txHash?: Hash; amount?: string; error?: string };
 }
 
 export interface KeeperState {

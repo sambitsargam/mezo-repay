@@ -1,7 +1,7 @@
 import type { Address, PublicClient } from "viem";
 import { repayAccountAbi } from "./abi/RePayAccount";
 import { borrowerOperationsAbi, interestRateManagerAbi, priceFeedAbi, troveManagerAbi } from "./abi/mezo";
-import { repaymentStatus, troveStatus, type RepaymentStatus, type TroveStatus } from "./accounting";
+import { guardStatus, repaymentStatus, troveStatus, type GuardStatus, type RepaymentStatus, type TroveStatus } from "./accounting";
 import type { ProtocolAddresses } from "./deployments";
 
 export interface Policy {
@@ -11,6 +11,12 @@ export interface Policy {
   operatingReserve: bigint;
   minExecution: bigint;
   maxExecution: bigint;
+}
+
+export interface Guard {
+  /** 1e18 = 100%. 0 = guard off. */
+  triggerRatio: bigint;
+  targetRatio: bigint;
 }
 
 export interface AccountSnapshot {
@@ -38,6 +44,17 @@ export interface AccountSnapshot {
   collateralSurplus: bigint;
   previewAmount: bigint;
   previewStatus: RepaymentStatus;
+  guard: Guard;
+  collateralBuffer: bigint;
+  /** BTC price from Mezo's feed (0 if unavailable). */
+  price: bigint;
+  /** Collateral ratio, 1e18 = 100% (0 if no loan or no price). */
+  ratio: bigint;
+  guardRepay: bigint;
+  guardTopUp: bigint;
+  guardStatus: GuardStatus;
+  totalProtectRepaid: bigint;
+  totalProtectTopUp: bigint;
   blockNumber: bigint;
 }
 
@@ -76,6 +93,15 @@ export async function readAccountSnapshot(client: PublicClient, address: Address
     collateralSurplus: s.collateralSurplus,
     previewAmount: s.previewAmount,
     previewStatus: repaymentStatus(s.previewStatus),
+    guard: { triggerRatio: BigInt(s.guard.triggerRatio), targetRatio: BigInt(s.guard.targetRatio) },
+    collateralBuffer: s.collateralBuffer,
+    price: s.price,
+    ratio: s.ratio,
+    guardRepay: s.guardRepay,
+    guardTopUp: s.guardTopUp,
+    guardStatus: guardStatus(s.guardStatus),
+    totalProtectRepaid: s.totalProtectRepaid,
+    totalProtectTopUp: s.totalProtectTopUp,
     blockNumber,
   };
 }

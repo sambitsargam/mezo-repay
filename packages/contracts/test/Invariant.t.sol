@@ -21,6 +21,9 @@ contract Handler is Test {
     uint256 public ghostWithdrawn;
     uint256 public ghostDirect;
     uint256 public ghostKeeperGain;
+    uint256 public ghostBufferFunded;
+    uint256 public ghostTopUp;
+    uint256 public ghostBufferWithdrawn;
 
     constructor(RePayAccount a, MockMUSD t, MockMezo m, address o, address p) {
         account = a;
@@ -99,6 +102,46 @@ contract Handler is Test {
         account.setPolicy(p);
     }
 
+    function fundBuffer(uint256 amount) external {
+        amount = bound(amount, 1, 0.05 ether);
+        vm.deal(owner, owner.balance + amount);
+        vm.prank(owner);
+        account.fundBuffer{value: amount}();
+        ghostBufferFunded += amount;
+    }
+
+    function withdrawBuffer(uint256 amount) external {
+        uint256 b = account.collateralBuffer();
+        if (b == 0) return;
+        amount = bound(amount, 1, b);
+        vm.prank(owner);
+        account.withdrawBuffer(owner, amount);
+        ghostBufferWithdrawn += amount;
+    }
+
+    function setGuard(uint64 trigger, uint64 target) external {
+        trigger = uint64(bound(trigger, 1.11e18, 3e18));
+        target = uint64(bound(target, trigger, 4e18));
+        vm.prank(owner);
+        account.setGuard(RePayAccount.Guard(trigger, target));
+    }
+
+    function movePrice(uint256 price) external {
+        mezo.setPrice(bound(price, 40_000e18, 120_000e18));
+    }
+
+    function keeperProtect() external {
+        (,,, RePayAccount.GuardStatus st) = account.guardPreview();
+        if (st != RePayAccount.GuardStatus.Protectable) return;
+        uint256 before = token.balanceOf(stranger);
+        uint256 btcBefore = stranger.balance;
+        vm.prank(stranger);
+        (uint256 repaid, uint256 added) = account.protect(address(0), address(0));
+        ghostRepaid += repaid;
+        ghostTopUp += added;
+        ghostKeeperGain += token.balanceOf(stranger) - before + (stranger.balance - btcBefore);
+    }
+
     function attackerTriesOwnerActions(uint256 amount) external {
         vm.startPrank(stranger);
         try account.withdrawOperating(stranger, amount) {
@@ -109,6 +152,12 @@ contract Handler is Test {
         } catch {}
         try account.borrow(amount + 1, address(0), address(0)) {
             revert("stranger borrowed");
+        } catch {}
+        try account.withdrawBuffer(stranger, amount) {
+            revert("stranger took buffer");
+        } catch {}
+        try account.setGuard(RePayAccount.Guard(0, 0)) {
+            revert("stranger changed guard");
         } catch {}
         vm.stopPrank();
     }
@@ -153,6 +202,15 @@ contract InvariantTest is BaseTest {
     function invariant_debtAboveFloor() public view {
         (,uint256 debt,,) = account.loanState();
         assertGe(debt, 2000e18);
+    }
+
+    /// The guard buffer is always backed by BTC held by the account and matches its flows.
+    function invariant_bufferBacked() public view {
+        assertLe(account.collateralBuffer(), address(account).balance);
+        assertEq(
+            account.collateralBuffer(), handler.ghostBufferFunded() - handler.ghostTopUp() - handler.ghostBufferWithdrawn()
+        );
+        assertEq(account.totalProtectTopUp(), handler.ghostTopUp());
     }
 
     /// Full MUSD flow: balance = borrowed + paid + direct - repaid - withdrawn.

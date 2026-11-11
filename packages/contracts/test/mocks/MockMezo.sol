@@ -101,6 +101,21 @@ contract MockMezo {
     }
 
     // --- views (TroveManager / BorrowerOperations / CollSurplusPool) ---
+    bool public priceFails;
+
+    function setPriceFails(bool f) external {
+        priceFails = f;
+    }
+
+    function priceFeed() external view returns (address) {
+        return address(this);
+    }
+
+    function fetchPrice() external view returns (uint256) {
+        require(!priceFails, "PriceFeed: stale");
+        return price;
+    }
+
     function musd() external view returns (address) {
         return address(token);
     }

@@ -28,6 +28,15 @@ const base: AccountSnapshot = {
   collateralSurplus: 0n,
   previewAmount: 150n,
   previewStatus: "Ready",
+  guard: { triggerRatio: 0n, targetRatio: 0n },
+  collateralBuffer: 0n,
+  price: 0n,
+  ratio: 0n,
+  guardRepay: 0n,
+  guardTopUp: 0n,
+  guardStatus: "Disabled",
+  totalProtectRepaid: 0n,
+  totalProtectTopUp: 0n,
   blockNumber: 1n,
 };
 
@@ -37,6 +46,17 @@ describe("decide", () => {
     for (const s of ["Paused", "Cooldown", "AtMinimumDebt", "ReserveShortfall", "NothingPending"] as const) {
       expect(decide({ ...base, previewStatus: s, previewAmount: 0n })).toEqual({ action: "skip", reason: s });
     }
+  });
+  it("protects before routine repayment when the guard can act", () => {
+    const risky = { ...base, guardStatus: "Protectable" as const, guardRepay: 150n, guardTopUp: 10n };
+    expect(decide(risky)).toEqual({ action: "protect", repay: 150n, topUp: 10n });
+    expect(decide({ ...risky, previewStatus: "Cooldown", previewAmount: 0n }).action).toBe("protect");
+  });
+  it("does not protect when the guard is healthy, off, or has nothing to use", () => {
+    for (const g of ["Healthy", "Disabled", "NoResources", "PriceUnavailable"] as const) {
+      expect(decide({ ...base, guardStatus: g }).action).toBe("execute");
+    }
+    expect(decide({ ...base, guardStatus: "Protectable", guardRepay: 0n, guardTopUp: 0n }).action).toBe("execute");
   });
   it("never executes a zero amount", () => {
     expect(decide({ ...base, previewAmount: 0n }).action).toBe("skip");

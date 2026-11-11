@@ -57,3 +57,23 @@ describe("example data is internally consistent", () => {
     expect(repaid).toBe(s.totalRepaid);
   });
 });
+
+describe("guard settings", async () => {
+  const { validateGuardDraft } = await import("@/components/GuardCard");
+  it("accepts trigger above 110% and target at or above trigger", () => {
+    const ok = validateGuardDraft("160", "180");
+    expect(ok.error).toBeNull();
+    expect(ok.triggerRatio).toBe(16n * 10n ** 17n);
+    expect(ok.targetRatio).toBe(18n * 10n ** 17n);
+  });
+  it("rejects unsafe or malformed settings", () => {
+    expect(validateGuardDraft("110", "150").error).toMatch(/above Mezo's 110%/);
+    expect(validateGuardDraft("170", "160").error).toMatch(/at least the trigger/);
+    expect(validateGuardDraft("170", "1200").error).toMatch(/at most 1000%/);
+    expect(validateGuardDraft("abc", "160").error).toMatch(/percentages/);
+  });
+  it("example data is internally consistent", () => {
+    expect(exampleSnapshot.guardStatus).toBe("Healthy");
+    expect(exampleSnapshot.ratio).toBeGreaterThan(exampleSnapshot.guard.triggerRatio);
+  });
+});
