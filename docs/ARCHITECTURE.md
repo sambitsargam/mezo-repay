@@ -16,8 +16,9 @@ docs/               This documentation
                                      ▼
  customer ── pay / payWithPermit ──► RePayAccount (EIP-1167 clone) ──► Mezo BorrowerOperations
  keeper ──── executeRepayment ─────►   ├ pendingRepayment               (openTrove, repayMUSD,
-                                       ├ operatingCash                    closeTrove, addColl, …)
-                                       └ owns its own Trove  ◄────────── Mezo TroveManager (reads)
+        └─── protect (guard) ──────►   ├ operatingCash                    closeTrove, addColl, …)
+                                       ├ collateralBuffer (BTC)
+                                       └ owns its own Trove  ◄────────── Mezo TroveManager, PriceFeed (reads)
  RePayAccountFactory ── clone + initialize (same tx), AccountCreated event, isAccount registry
 ```
 
@@ -29,6 +30,16 @@ docs/               This documentation
   `BorrowerOperations.musd()` at deploy time, so the token always matches the borrowing system.
 - Because Mezo's BorrowerOperations acts on `msg.sender`, the account contract *is* the borrower. No
   delegation or signatures are needed for repayment.
+
+**Collateral guard (v2).** The owner sets a trigger and target ratio and reserves BTC in the account
+(`fundBuffer`). `guardPreview()` reads Mezo's `PriceFeed.fetchPrice()` in-block and computes the
+collateral ratio, then how much pending MUSD to repay toward the target (capped by pending and Mezo's
+minimum debt) and how much buffer BTC to add for the remaining gap. `protect()` executes exactly that:
+`repayMUSD` then `addColl`, both for the account's own Trove. The price feed is wrapped in try/catch so
+views keep working when the oracle is stale. The keeper checks the guard before routine repayment.
+
+The hosted keeper runs on a GitHub Actions schedule. The web app's `/api/keeper/status` route
+rebuilds its status from chain logs (actions sent by the keeper address) and the public Actions API.
 
 `RePayAccount.snapshot()` returns every field the UI and keeper need in one `eth_call`, including the
 contract's own `previewRepayment()`. Off-chain code never re-implements the decision logic it acts on.

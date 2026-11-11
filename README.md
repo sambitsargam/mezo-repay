@@ -8,6 +8,8 @@ A RePay account is a small contract that only your wallet controls. It **owns a 
 MUSD loan (Trove)**, receives customer payments through payment links, splits each payment once
 (for example 30% to repayment, 70% to operating cash), and lets anyone, such as a keeper, apply the
 set-aside share to the loan. The repayment is bounded by your policy and Mezo's minimum-debt rule.
+If BTC falls and the loan's collateral ratio drops below your trigger, the **collateral guard**
+applies pending MUSD to the debt and adds BTC from a buffer you reserved, aiming for your target ratio.
 
 > Mezo **testnet** only. Self-reviewed and tested, **not audited**. No real funds.
 
@@ -22,10 +24,12 @@ set-aside share to the loan. The repayment is bounded by your policy and Mezo's 
 | | |
 | --- | --- |
 | Network | Mezo testnet, chain 31611 |
-| Contracts | Deployed: factory [`0xceb2223F…E56b`](https://explorer.test.mezo.org/address/0xceb2223F6F81991E671781A77f8f3469d6FDe56b), Sourcify exact match |
+| Contracts | v2 deployed: factory [`0xceb2223F…E56b`](https://explorer.test.mezo.org/address/0xceb2223F6F81991E671781A77f8f3469d6FDe56b), Sourcify exact match ([v1](docs/DEPLOYMENTS.md) superseded) |
 | Live end-to-end run | Done: account → Trove → customer payments → keeper repayments → debt 2,202 → 2,000 MUSD ([evidence](docs/EVIDENCE.md)) |
 | Web app | **https://mezo-repay.vercel.app** (Vercel; opened and checked 2026-10-25) · also runs locally with `pnpm dev` |
-| Keeper | Working; run live on demand. No always-on public instance |
+| Collateral guard | Live: `protect` took the demo Trove from 158.2% to 177.4% ([evidence](docs/EVIDENCE.md)) |
+| Loan paths run live | open, repay, addColl, withdrawColl, close (claim surplus: unit-tested only) |
+| Keeper | Hosted on a GitHub Actions schedule (every 10 min); public status at [/api/keeper/status](https://mezo-repay.vercel.app/api/keeper/status) |
 
 Live app: **https://mezo-repay.vercel.app** · read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
 
@@ -52,18 +56,18 @@ Optional `apps/web/.env.local`:
 
 ```
 NEXT_PUBLIC_MEZO_RPC_URL=https://rpc.test.mezo.org
-NEXT_PUBLIC_KEEPER_STATUS_URL=        # keeper /status base URL; empty → Automation shows "Not configured"
+NEXT_PUBLIC_KEEPER_STATUS_URL=        # keeper status base URL; default /api/keeper (hosted keeper), "off" → "Not configured"
 ```
 
 ## Tests
 
 ```bash
-pnpm contracts:test                  # 61 Foundry tests: unit, fuzz, 6 invariants
-pnpm contracts:fork                  # full flow on a fork of real Mezo testnet contracts (~5 min)
-pnpm --filter @repay/sdk test        # 18 accounting/format/link tests
-pnpm --filter @repay/keeper test     # 6 keeper decision/config tests
-pnpm --filter @repay/web test        # 7 web unit tests
-pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 46 Playwright tests (desktop + mobile, uses installed Chrome)
+pnpm contracts:test                  # 79 Foundry tests: unit, fuzz, guard, permission matrix, 7 invariants
+pnpm contracts:fork                  # full flow + guard on a fork of real Mezo testnet contracts (~5 min)
+pnpm --filter @repay/sdk test        # 20 accounting/format/link/guard tests
+pnpm --filter @repay/keeper test     # 8 keeper decision/config tests
+pnpm --filter @repay/web test        # 10 web unit tests
+pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 50 Playwright tests (desktop + mobile, uses installed Chrome)
 pnpm typecheck && pnpm lint
 ```
 
@@ -96,6 +100,8 @@ Details: [ARCHITECTURE](docs/ARCHITECTURE.md) · [ACCOUNTING](docs/ACCOUNTING.md
   *"Waiting for enough MUSD to close the loan"*.
 - Customer payments via exact approval or **MUSD EIP-2612 permit** (one transaction).
 - Liquidation, redemption, surplus claim and recovery mode are handled and tested.
+- **Collateral guard** reads Mezo's `PriceFeed.fetchPrice()` in-block, repays from pending MUSD and
+  calls `addColl` with buffer BTC when the ratio is below the owner's trigger.
 
 ## How the money is counted
 
@@ -121,13 +127,13 @@ On Vercel: set the project root to `apps/web`, install command `pnpm install`, b
 
 Testnet only and not audited. Only loans opened by a RePay account are managed; existing wallet-owned
 Troves cannot be imported. Partial repayment stops at Mezo's minimum debt, and the final close is an
-owner action. Keeper execution is best-effort. No liquidation protection, and collateral is never
-sold to repay. Payment references are labels, not proof of invoices.
+owner action. Keeper execution is best-effort. The collateral guard reduces liquidation risk but cannot
+prevent it in a fast drop, and collateral is never sold to repay. Payment references are labels, not proof of invoices.
 
 ## Hackathon materials
 
-Demo video (4:15): [docs/video/mezo-repay-demo.mp4](docs/video/mezo-repay-demo.mp4) · [SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
-deck: [source](docs/deck/index.html) / [PDF](docs/deck/mezo-repay-deck.pdf)
+Demo video (1:50): [docs/video/mezo-repay-demo.mp4](docs/video/mezo-repay-demo.mp4) · [SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
+deck: [online](https://mezo-repay.vercel.app/deck/) / [source](docs/deck/index.html) / [PDF](docs/deck/mezo-repay-deck.pdf)
 
 ## License
 

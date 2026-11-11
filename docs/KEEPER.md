@@ -1,7 +1,8 @@
 # Keeper
 
-`services/keeper`: a small TypeScript service that triggers `executeRepayment` on RePay accounts
-when the contract's own preview says a repayment is ready.
+`services/keeper`: a small TypeScript service that calls `protect` on RePay accounts whose collateral
+guard can act, and otherwise `executeRepayment` when the contract's own preview says a repayment is
+ready. Loan safety comes first.
 
 ## Authority and cost
 
@@ -18,10 +19,11 @@ when the contract's own preview says a repayment is ready.
 1. Checks the chain id is allowlisted (31611 only) at startup and refuses otherwise.
 2. Discovers accounts from factory `AccountCreated` events in 10,000-block ranges, from the
    registry's deployment block, saving a checkpoint after each range (`state/state.json`, atomic write).
-3. For each account, reads `snapshot()` (with bounded retry/backoff). If `previewStatus != Ready`,
-   logs the plain-language reason and moves on.
+3. For each account, reads `snapshot()` (with bounded retry/backoff). If `guardStatus == Protectable`
+   it calls `protect`. Otherwise, if `previewStatus != Ready`, it logs the plain-language reason and
+   moves on.
 4. Computes sorted-list hints for the post-repayment position (falls back to zero hints).
-5. **Simulates** `executeRepayment`. If simulation reverts (another keeper won, cooldown, interest
+5. **Simulates** the call (`protect` or `executeRepayment`). If simulation reverts (another keeper won, cooldown, interest
    changed), nothing is sent.
 6. In live mode, sends, then waits up to 120 s for the receipt. A missing receipt is logged and
    **never resubmitted**; the next scan re-reads chain state, which is authoritative.
@@ -57,15 +59,38 @@ Status endpoint (read-only, no keys, no commands):
 - `GET /status`: checkpoint, discovered accounts, per-account status and last action, last execution, mode
 - `GET /health`: 200 if a scan succeeded within 3 poll intervals, else 503
 
-To show live keeper status in the web app, set `NEXT_PUBLIC_KEEPER_STATUS_URL` to the keeper's public
-base URL (this is a URL, not a secret). Without it the Automation page says **Not configured**. It never
-claims automation is active just because contracts exist.
+The web app reads keeper status from `NEXT_PUBLIC_KEEPER_STATUS_URL` + `/status`. By default that is
+the app's own `/api/keeper/status` route, which describes the hosted keeper from public data only (see
+below). Point it at a self-hosted keeper's base URL instead, or set it to `off` to show
+**Not configured**. The app never claims automation is active just because contracts exist.
 
 `SIGINT`/`SIGTERM` stop the loop, let an in-flight scan finish, then exit.
 
 ## Hosting
 
-Any always-on Node 20+ host works (a small VM, Fly.io, Railway, Render background worker):
+### Hosted instance: GitHub Actions (current)
+
+`.github/workflows/keeper.yml` runs one live keeper pass (`--once --live`) every 10 minutes and on
+manual dispatch. The key comes from the encrypted repository secret `KEEPER_PRIVATE_KEY` for the
+testnet keeper wallet `0x2f7b81940281d513b0DbfebE78005030391e1c02`, which has no authority over any
+account. The discovery checkpoint is kept in the Actions cache.
+
+The repository owner adds the secret once:
+
+```bash
+gh secret set KEEPER_PRIVATE_KEY --repo sambitsargam/mezo-repay
+```
+
+Public status: https://mezo-repay.vercel.app/api/keeper/status. It is built only from the chain
+(accounts, statuses, actions sent by the keeper address) and the public GitHub Actions API (latest
+runs). It reads no key.
+
+GitHub may start scheduled runs late, and pauses schedules in repositories with no activity for 60
+days. That is acceptable for testnet; a guard that must react fast needs an always-on host too.
+
+### Always-on host
+
+Any Node 20+ host works (a small VM, Fly.io, Railway, Render background worker):
 
 ```bash
 pnpm install --frozen-lockfile
@@ -77,13 +102,15 @@ deployment block). Put the status port behind HTTPS if exposing it to the browse
 
 ## Operational status (at time of writing)
 
-The keeper has been run live with `--once` against Mezo testnet twice. Both runs executed real
-repayments (`docs/EVIDENCE.md` steps `keeper-execute` and `keeper-execute-capped`). No always-on
-public keeper instance is hosted yet, so the deployed app shows automation as **Not configured**. Hosting it is planned for the next wave.
+- v1: two live `--once` runs executed real repayments (`keeper-execute`, `keeper-execute-capped`).
+- v2: the keeper wallet executed a repayment and a guard `protect` live (`keeper-execute`,
+  `keeper-protect` in `docs/EVIDENCE.md`).
+- Hosted schedule: the workflow is committed; it runs as soon as the `KEEPER_PRIVATE_KEY` secret
+  exists. The Automation page shows the latest run and its result.
 
 ## Limitations
 
-- One operator, no redundancy, no SLA.
-- No liquidation monitoring or protection.
+- One operator, no redundancy, no SLA; scheduled runs can be late.
+- The guard only acts when a pass runs, and only with pending MUSD and the owner's buffer.
 - Keeper gas comes from the operator's wallet; if it runs out of BTC, the keeper logs a warning and
   simulations still run, but sends fail.

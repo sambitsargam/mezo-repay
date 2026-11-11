@@ -102,7 +102,24 @@ repayment proceeds.
 | `releasePending(amount)` | pending → operating; emits `PendingReleased`; `totalReleased += amount` |
 | `withdrawOperating(to, amount)` | operating → `to`; `totalWithdrawn += amount`; cannot touch pending |
 | `closeLoan()` | required = `totalDebt − gasCompensation`; uses pending first, then operating; reverts if insufficient |
-| `withdrawBtc`, `claimCollateralSurplus`, `withdrawCollateral` | BTC only; MUSD buckets unchanged |
+| `withdrawBtc`, `claimCollateralSurplus`, `withdrawCollateral` | BTC only; MUSD buckets unchanged. `withdrawBtc` is limited to BTC outside the guard buffer |
+| `fundBuffer` / `withdrawBuffer` | BTC only: `collateralBuffer` up / down. Invariant: `collateralBuffer ≤ address(this).balance` |
+
+## Collateral guard (`protect`, permissionless)
+
+With `ratio = collateral × price ÷ debt` (price from Mezo's feed in the executing block) below the
+owner's trigger:
+
+```
+targetDebt = collateral × price ÷ target
+repay      = min(debt − targetDebt, pendingRepayment, maxRepayable)
+topUp      = min(ceil(target × (debt − repay) ÷ price) − collateral, collateralBuffer)   (0 if negative)
+```
+
+`repay` debits `pendingRepayment` and counts in `totalRepaid` and `totalProtectRepaid`; `topUp` debits
+`collateralBuffer` and counts in `totalProtectTopUp`. Operating cash and unclassified MUSD are never
+touched. Cooldown, pause, reserve and min/max do not apply: they pace routine repayment, and this is a
+safety action. If both amounts are zero the status is `NoResources` and `protect` reverts.
 
 ## Close vs partial repayment
 

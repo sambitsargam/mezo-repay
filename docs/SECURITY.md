@@ -7,8 +7,8 @@
 
 | Actor | Can | Cannot |
 | --- | --- | --- |
-| **Owner** (fixed at creation) | change policy, pause/resume, open/close loan, borrow, add/withdraw collateral, repay, withdraw operating cash, release pending, classify transfers, claim surplus, withdraw BTC | change the owner (no transfer function exists) |
-| **Anyone / keeper** | `executeRepayment(upperHint, lowerHint)` and `pay`/`payWithPermit` | everything else (all reverts with `NotOwner`) |
+| **Owner** (fixed at creation) | change policy and guard, fund/withdraw the guard buffer, pause/resume, open/close loan, borrow, add/withdraw collateral, repay, withdraw operating cash, release pending, classify transfers, claim surplus, withdraw BTC | change the owner (no transfer function exists) |
+| **Anyone / keeper** | `executeRepayment(upperHint, lowerHint)`, `protect(upperHint, lowerHint)` and `pay`/`payWithPermit` | everything else (all reverts with `NotOwner`) |
 | **Factory** | create clones and call `initialize` once in the same transaction | anything after creation: no admin, no upgrade, no funds |
 | **Mezo protocol** | liquidate or redeem the Trove under its rules | move the account's MUSD |
 
@@ -22,6 +22,25 @@
 - pays the caller nothing (zero keeper fee) and has no recipient parameter;
 - respects pause, cooldown, reserve, min/max and Mezo's minimum debt;
 - checks that exactly `amount` MUSD was burned (`UnexpectedBurn`), otherwise reverts.
+
+`protect` (collateral guard, v2):
+
+- acts only while the guard is on and the Trove's ratio (collateral × Mezo `PriceFeed.fetchPrice()` ÷
+  debt, read in the executing block) is below the owner's trigger;
+- repays only from `pendingRepayment`, capped by what the target needs and by Mezo's minimum debt;
+  it ignores pause/cooldown/reserve/min/max on purpose, because those are cadence controls and this is
+  a safety action;
+- adds collateral only from `collateralBuffer`, BTC the owner explicitly reserved, and only into
+  `address(this)`'s Trove via `addColl`; never more than the target needs;
+- pays the caller nothing and has no recipient parameter; never touches operating cash;
+- if the price feed reverts, views report `PriceUnavailable` and `protect` reverts.
+
+`withdrawBtc` can only take BTC outside the buffer (`freeBtc()`), so buffer accounting can't be
+bypassed by the owner by accident; `withdrawBuffer` is the explicit way to release it.
+
+Tests: `test/Guard.t.sol` (15 incl. fuzz), `test/Permissions.t.sol` (every owner-only function × 4
+non-owner callers, and a check that permissionless calls move no value to the caller), invariant
+`invariant_bufferBacked`, and the fork test `test_fork_guardProtectsAfterPriceDrop`.
 
 There is no arbitrary call, no `delegatecall`, and no generic executor.
 
@@ -43,7 +62,7 @@ Tests: `test_cannotReinitializeClone`, `test_implementationCannotBeInitialized`,
 
 ## Reentrancy
 
-Every state-changing function is `nonReentrant` (OpenZeppelin `ReentrancyGuard`). External calls go
+Every function that makes an external call or moves value is `nonReentrant` (OpenZeppelin `ReentrancyGuard`); the remaining setters (`setPolicy`, `setPaused`, `setGuard`, `fundBuffer`) only write owner settings. External calls go
 to MUSD (OpenZeppelin ERC20Permit, no hooks), Mezo BorrowerOperations, and plain BTC sends to the
 owner-chosen destination. `receive()` accepts BTC with no logic. The mock protocol re-enters
 `executeRepayment` during `repayMUSD`; the guard reverts (`test_reentrancyBlocked`).
@@ -58,7 +77,7 @@ payer signs for exactly the payment amount. Tests: `PermitTest` (4 cases). Live:
 ## Static analysis: Slither (via `uvx --from slither-analyzer`)
 
 `slither . --filter-paths "lib/|test/|script/" --exclude-informational --exclude-optimization`.
-15 results across 8 detectors, triaged:
+v2: 18 results across 10 detectors, triaged:
 
 | Detector | Finding | Assessment |
 | --- | --- | --- |
@@ -68,10 +87,12 @@ payer signs for exactly the payment amount. Tests: `PermitTest` (4 cases). Live:
 | timestamp | cooldown comparison | Intended; validator timestamp skew is negligible relative to cooldowns. Accepted. |
 | unused-return | partial tuple from `getEntireDebtAndColl` | Intended. |
 | events-maths | `setPaused` style setter | Events are emitted (`AutomationPaused`). Accepted. |
+| reentrancy-no-eth (v2) | `protect` writes `collateralBuffer` / `totalProtectTopUp` after `repayMUSD` | `protect` is `nonReentrant` and the callee is Mezo's BorrowerOperations. The only functions without the reentrancy guard are owner-only setters, and Mezo never calls back as the owner. Ordering the writes before the call would be cleaner; we kept the deployed, verified bytecode and will reorder in the next release. Accepted. |
+| incorrect-equality (v2) | `snapshot()` compares the loan status enum | A status comparison, not a balance check. False positive. |
 
 ## Frontend and keeper
 
-- The keeper key lives only in a gitignored `.env`; it is never a `NEXT_PUBLIC_*` variable, and keeper
+- The keeper key lives only in a gitignored `.env` locally and in an encrypted GitHub Actions secret for the hosted run; it is never a `NEXT_PUBLIC_*` variable, and keeper
   logs redact 32-byte hex strings outside hash fields.
 - The keeper allowlists chain id 31611 and simulates before every send.
 - After submitting, it never resubmits: a missing receipt is logged and state is re-read on the next scan.
@@ -79,6 +100,7 @@ payer signs for exactly the payment amount. Tests: `PermitTest` (4 cases). Live:
   reports slow receipts as "still confirming", never as failure.
 - The payer page verifies `factory.isAccount(target)` before allowing payment, and marks the
   display name from the link as unverified.
+- The public keeper status route (`/api/keeper/status`) reads only chain data and the public Actions API; it has no key.
 - CSV export neutralizes formula injection (`=`, `+`, `-`, `@` prefixes).
 
 ## Known limitations and residual risk
@@ -86,6 +108,6 @@ payer signs for exactly the payment amount. Tests: `PermitTest` (4 cases). Live:
 - Not audited. Mezo contracts are upgradeable proxies controlled by Mezo governance; their behavior
   may change.
 - The owner key is a single point of control. There is no recovery if it is lost.
-- Liquidation risk is the owner's; RePay does not monitor or protect against it.
+- Liquidation risk is the owner's. The collateral guard only uses pending MUSD and the buffer the owner funded, runs only when someone calls `protect`, and can be outrun by a fast price drop.
 - If Mezo's price oracle is stale, all Trove operations revert; funds stay pending.
-- The keeper is best-effort: one operator, no SLA.
+- The keeper is best-effort: one operator on a GitHub Actions schedule (runs can start late), no SLA.
