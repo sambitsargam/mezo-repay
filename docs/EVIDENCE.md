@@ -1,8 +1,8 @@
 # Evidence
 
-Everything below comes from `docs/evidence/live-run.json`, which the demo runner
-(`services/keeper/src/demo.ts`) and keeper append to as steps run on **Mezo testnet (chain 31611)**.
-Regenerate this file with `node scripts/render-evidence.mjs`.
+Everything below is generated from the JSON records in `docs/evidence/`, which the demo runner
+(`services/keeper/src/demo.ts`) appends to as each step runs on **Mezo testnet (chain 31611)**.
+Regenerate with `node scripts/render-evidence.mjs`.
 
 Each row is labeled with its type:
 
@@ -10,20 +10,371 @@ Each row is labeled with its type:
 - **Read-only call**: state read with `eth_call` at the stated block; no transaction.
 - **Simulation**: `eth_call` of a write, showing what the contract would do; no transaction.
 
-Local tests (Foundry, Vitest, Playwright) are listed separately at the end and are **not** live evidence.
+Local tests (Foundry, Vitest, Playwright) are listed at the end and are **not** live evidence.
 
-## Participants
+## Summary
+
+| Path | Live on testnet | Where |
+| --- | --- | --- |
+| Create account (factory clone) | Yes (v1 and v2) | v2 `create-account` |
+| Open a Mezo Trove owned by the account | Yes (v1 and v2) | v2 `open-loan` |
+| Tracked payment, approve + `pay` | Yes | v2 `customer-pay` (×2) |
+| Tracked payment, EIP-2612 `payWithPermit` | Yes | v2 `customer-pay-permit` |
+| Split into pending repayment / operating cash | Yes | `PaymentReceived` data on each payment |
+| Keeper `executeRepayment` (permissionless) | Yes | v2 `keeper-execute`; v1 two runs |
+| Repayment capped at Mezo's minimum debt | Yes | v1 `keeper-execute-capped`; v2 `keeper-protect` |
+| Collateral guard `protect`: pending → repay, buffer → `addColl` | Yes | v2 `keeper-protect` |
+| Owner `addCollateral` / `withdrawCollateral` | Yes | v2 `owner-add-collateral`, `owner-withdraw-collateral` |
+| Owner `closeLoan` (`closeTrove`) and BTC withdrawal | Yes | v1 `owner-close-loan`, `owner-withdraw-btc` |
+| Direct transfer stays unclassified, then classified | Yes | v1 `direct-transfer`, `classify-revenue` |
+| Non-owner rejected | Yes (simulation + mined revert) | v1 and v2 `unauthorized-*` |
+| `claimCollateralSurplus` | **No.** Surplus exists only after a liquidation or redemption of this Trove, which we cannot cause honestly on a shared testnet. Covered by unit tests against the mock (`test_fullRedemptionThenClaimSurplus`). | — |
+
+## Run 2: current deployment (v2, collateral guard)
 
 | Role | Address |
 | --- | --- |
-| RePay factory | [`0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c`](https://explorer.test.mezo.org/address/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c) |
-| RePay account (demo) | [`0x76D5a6E6D0D494299A281006Bb5471d50acA388C`](https://explorer.test.mezo.org/address/0x76D5a6E6D0D494299A281006Bb5471d50acA388C) |
+| RePay factory v2 | [`0xceb2223F6F81991E671781A77f8f3469d6FDe56b`](https://explorer.test.mezo.org/address/0xceb2223F6F81991E671781A77f8f3469d6FDe56b) · deployed in [`0x11fac633b46ef7a5…`](https://explorer.test.mezo.org/tx/0x11fac633b46ef7a53d6a6e8410981a34bbec57e54953ccb13764c9a704a81bea) (block 16722537) |
+| RePay account (demo) | [`0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7`](https://explorer.test.mezo.org/address/0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7) |
 | Owner / deployer wallet | [`0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB`](https://explorer.test.mezo.org/address/0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB) |
-| Customer wallet (separate key) | [`0xED7a26AD75c224728EBA1059BE7E1864c2Fab1ed`](https://explorer.test.mezo.org/address/0xED7a26AD75c224728EBA1059BE7E1864c2Fab1ed) |
+| Customer wallet (separate key, borrowed its own MUSD) | [`0xED7a26AD75c224728EBA1059BE7E1864c2Fab1ed`](https://explorer.test.mezo.org/address/0xED7a26AD75c224728EBA1059BE7E1864c2Fab1ed) |
 | Keeper wallet (separate key, no authority) | [`0x2f7b81940281d513b0DbfebE78005030391e1c02`](https://explorer.test.mezo.org/address/0x2f7b81940281d513b0DbfebE78005030391e1c02) |
-| Factory deployment tx | [`0x78dc084e1060fe0a…`](https://explorer.test.mezo.org/tx/0x78dc084e1060fe0a60342052847f116790ea76817083c935f197e8f1aaf380c4) (block 16356360) |
 
-## Steps
+### What run 2 demonstrates
+
+1. **Account and real Trove.** The factory created the account; `openLoan` sent 0.045 BTC through `BorrowerOperations.openTrove` and the account became the borrower (debt 2,202 MUSD, ratio 150.9%).
+2. **Tracked income split once.** A separate customer wallet paid 500 MUSD (approve + `pay`), 100 MUSD (one-transaction permit) and 100 MUSD again. Each payment split 30% to pending repayment and 70% to operating cash. Borrowed MUSD was never counted as income.
+3. **Policy limits respected.** The owner capped automated repayment at 100 MUSD; the keeper's `executeRepayment` repaid exactly 100 (debt 2,202.0000 MUSD → 2,102.0000 MUSD) and left the rest pending under cooldown.
+4. **Collateral guard, live.** The owner set the guard to protect below 170% and aim for 180%, and reserved 0.003 BTC as a buffer. The trigger was set **above** the current ratio so the path runs at today's price (testnet prices cannot be moved by us). The keeper called `protect`: it repaid 102.0001 MUSD from pending (capped exactly at Mezo's 2,000 MUSD floor, ignoring the cooldown), then added 0.003000 BTC from the buffer through `addColl`. Ratio **158.20% → 177.35%**. Operating cash was not touched.
+5. **Collateral management.** The owner added and withdrew 0.0005 BTC of collateral (`addColl`, `withdrawColl`).
+6. **Authority.** The customer's `withdrawOperating` simulation reverted with `NotOwner()`, and its mined `setPolicy` transaction reverted.
+
+### Steps
+
+| # | Step | Type | Result | What happened |
+| --- | --- | --- | --- | --- |
+| 1 | `create-account` | On-chain transaction | [success · block 16722558](https://explorer.test.mezo.org/tx/0xdcbba1361dfb6d6b3a53b98fa0009db0bde8eab8087c3923f84afa41230503b3) | Owner created a RePay account (30% repayment, 5 min cooldown, 10 MUSD minimum) |
+| 2 | `open-loan` | On-chain transaction | [success · block 16722566](https://explorer.test.mezo.org/tx/0x73834a842ad156a75129d94832579d7bfd4de05cb21fdb582e387638e6bab27c) | Account opened a Mezo Trove: 0.045000 BTC collateral, borrowed 2,000.00 MUSD |
+| 3 | `read-after-open` | Read-only call | block 16722566 | Account state after opening |
+| 4 | `customer-musd` | On-chain transaction | [success · block 16722571](https://explorer.test.mezo.org/tx/0xd8309a858dc28e950c0a13a1446dd13a747e0af1f6c8c8bc8ba9a692ff8b8a3b) | Customer wallet opened its own Trove to obtain 1,800.00 MUSD (independent of the RePay account) |
+| 5 | `customer-approve` | On-chain transaction | [success · block 16722573](https://explorer.test.mezo.org/tx/0x2e6cb8daf1fd4d664dd08c4aa85dd0892f6d4efaef4ab1fdfe05f08d40b8fa52) | Customer approved exactly 500.00 MUSD for the account |
+| 6 | `customer-pay` | On-chain transaction | [success · block 16722575](https://explorer.test.mezo.org/tx/0x57c1e0a27a8f56c7f48a5ada8540d13103b564063547e7fa267c418c082fe25c) | Customer paid 500.00 MUSD with reference INV-2026-101 |
+| 7 | `read-after-pay` | Read-only call | block 16722575 | Account state after payment |
+| 8 | `customer-pay-permit` | On-chain transaction | [success · block 16722579](https://explorer.test.mezo.org/tx/0xfab5349a16b8238094c48a2a1e37465fe2ebdd03ff0cc2b706257989743dd6da) | Customer paid 100.00 MUSD in one transaction using an EIP-2612 permit (ref INV-2026-102) |
+| 9 | `customer-approve` | On-chain transaction | [success · block 16722585](https://explorer.test.mezo.org/tx/0x69d0bf2b8f1f1256a046d9d097a764b9d71cd759633613508f296043b003ba54) | Customer approved exactly 100.00 MUSD for the account |
+| 10 | `customer-pay` | On-chain transaction | [success · block 16722586](https://explorer.test.mezo.org/tx/0x70d30159b2554e63c0f9f9a5b110f2b0a2858be087c9c3dc91fe766a8e9e8ee6) | Customer paid 100.00 MUSD with reference INV-2026-103 |
+| 11 | `read-after-pay` | Read-only call | block 16722586 | Account state after payment |
+| 12 | `owner-set-policy` | On-chain transaction | [success · block 16722593](https://explorer.test.mezo.org/tx/0xd2be3af670846234548077468b897e9a341bae7420283e37da8eff84f2099982) | Owner updated the policy: 30% to repayment, at most 100.00 MUSD per automated repayment, 5 min cooldown |
+| 13 | `keeper-execute` | On-chain transaction | [success · block 16722597](https://explorer.test.mezo.org/tx/0xf941c705e65cc69a98cf852a9330b61223a8a238c1f9acea52f2d9ffc6838428) | Keeper repaid 100.00 MUSD from pending (permissionless, no fee) |
+| 14 | `read-after-keeper-execute` | Read-only call | block 16722603 | Account state read |
+| 15 | `owner-set-guard` | On-chain transaction | [success · block 16722608](https://explorer.test.mezo.org/tx/0xb667b9cbce8c5f70324d0dfb75c0bc2bc66543c40b55bb468a5fad73d149df94) | Owner set the collateral guard: protect below 170%, aim for 180% |
+| 16 | `read-after-guard` | Read-only call | block 16722608 | Guard status after setting it |
+| 17 | `owner-fund-buffer` | On-chain transaction | [success · block 16722611](https://explorer.test.mezo.org/tx/0x1a37221057b1f7639195bfde8c279789e3e92fe638408bdedec79eda82650dbb) | Owner reserved 0.003000 BTC in the account as the guard's collateral buffer |
+| 18 | `read-before-protect` | Read-only call | block 16722612 | Account state read |
+| 19 | `keeper-protect` | On-chain transaction | [success · block 16722614](https://explorer.test.mezo.org/tx/0x1701f39adca27596085f00bc483e9aa45a6bfd021bc372a5cfbfd15724c44aa9) | Keeper called protect: repaid 102.00 MUSD from pending and added 0.003000 BTC from the buffer |
+| 20 | `read-after-keeper-protect` | Read-only call | block 16722614 | Account state after the keeper call |
+| 21 | `owner-add-collateral` | On-chain transaction | [success · block 16722619](https://explorer.test.mezo.org/tx/0x736fcc565b05db96996a43edb7288b8dc7436f24d0a84b674a057c1e5975d8fc) | Owner added 0.000500 BTC collateral to the account's Trove (BorrowerOperations.addColl) |
+| 22 | `owner-withdraw-collateral` | On-chain transaction | [success · block 16722621](https://explorer.test.mezo.org/tx/0x809d93a933a56c975780d9ca52e7f680425696356c9c3c273b57bc50c05475fb) | Owner withdrew 0.000500 BTC collateral from the Trove to the owner wallet (BorrowerOperations.withdrawColl) |
+| 23 | `unauthorized-simulation` | Simulation (eth_call) | — | Customer attempted withdrawOperating; contract rejected it |
+| 24 | `unauthorized-transaction` | On-chain transaction | [reverted · block 16722624](https://explorer.test.mezo.org/tx/0xac6b64d885588bc34e6ba168ab12eb67ebfc95e1759e00c3ecded911cceeee2c) | Customer sent setPolicy on-chain; it reverted with NotOwner (policy unchanged) |
+| 25 | `read-final` | Read-only call | block 16722625 | Account state read |
+
+### Recorded state
+
+<details><summary><code>create-account</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| account | 0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7 |
+| owner | 0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB |
+
+</details>
+
+<details><summary><code>open-loan</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| borrowingFee | 2.0000 MUSD |
+| projectedTotalDebt | 2,202.0000 MUSD |
+| projectedCR | 150.93% |
+
+</details>
+
+<details><summary><code>read-after-open</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722566 |
+| loanStatus | active |
+| debt | 2,202.0000 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 150.91% |
+| btcPrice | 73,849.01 MUSD |
+| pendingRepayment | 0.00 MUSD |
+| operatingCash | 2,000.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 0.00 MUSD |
+| totalRepaid | 0.00 MUSD |
+| maxRepayable | 202.00 MUSD |
+| previewStatus | NothingPending |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Disabled |
+| guard | off |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>customer-pay</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| paymentId | 1 |
+| toRepayment | 150.00 MUSD |
+| toOperating | 350.00 MUSD |
+
+</details>
+
+<details><summary><code>read-after-pay</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722575 |
+| loanStatus | active |
+| debt | 2,202.0000 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 150.96% |
+| btcPrice | 73,873.97 MUSD |
+| pendingRepayment | 150.00 MUSD |
+| operatingCash | 2,350.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 500.00 MUSD |
+| totalRepaid | 0.00 MUSD |
+| maxRepayable | 202.00 MUSD |
+| previewStatus | Ready |
+| previewAmount | 150.00 MUSD |
+| guardStatus | Disabled |
+| guard | off |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>customer-pay-permit</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| paymentId | 2 |
+| toRepayment | 30.00 MUSD |
+| toOperating | 70.00 MUSD |
+
+</details>
+
+<details><summary><code>customer-pay</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| paymentId | 3 |
+| toRepayment | 30.00 MUSD |
+| toOperating | 70.00 MUSD |
+
+</details>
+
+<details><summary><code>read-after-pay</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722586 |
+| loanStatus | active |
+| debt | 2,202.0000 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 151.15% |
+| btcPrice | 73,965.71 MUSD |
+| pendingRepayment | 210.00 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 0.00 MUSD |
+| maxRepayable | 202.00 MUSD |
+| previewStatus | Ready |
+| previewAmount | 202.00 MUSD |
+| guardStatus | Disabled |
+| guard | off |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>keeper-execute</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| debtBefore | 2,202.0000 MUSD |
+| debtAfter | 2,102.0000 MUSD |
+
+</details>
+
+<details><summary><code>read-after-keeper-execute</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722603 |
+| loanStatus | active |
+| debt | 2,102.0001 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 158.20% |
+| btcPrice | 73,900.99 MUSD |
+| pendingRepayment | 110.00 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 100.00 MUSD |
+| maxRepayable | 102.00 MUSD |
+| previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Disabled |
+| guard | off |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>read-after-guard</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722608 |
+| loanStatus | active |
+| debt | 2,102.0001 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 158.22% |
+| btcPrice | 73,906.94 MUSD |
+| pendingRepayment | 110.00 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 100.00 MUSD |
+| maxRepayable | 102.00 MUSD |
+| previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Protectable |
+| guard | 170% → 180% |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>read-before-protect</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722612 |
+| loanStatus | active |
+| debt | 2,102.0001 MUSD |
+| collateral | 0.045000 BTC |
+| collateralRatio | 158.20% |
+| btcPrice | 73,900.37 MUSD |
+| pendingRepayment | 110.00 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 100.00 MUSD |
+| maxRepayable | 102.00 MUSD |
+| previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Protectable |
+| guard | 170% → 180% |
+| collateralBuffer | 0.003000 BTC |
+| btcHeldByAccount | 0.003000 BTC |
+
+</details>
+
+<details><summary><code>keeper-protect</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| ratioBefore | 158.20% |
+| ratioAfter | 177.35% |
+| repaid | 102.0001 MUSD |
+| collateralAdded | 0.003000 BTC |
+
+</details>
+
+<details><summary><code>read-after-keeper-protect</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722614 |
+| loanStatus | active |
+| debt | 2,000.0000 MUSD |
+| collateral | 0.048000 BTC |
+| collateralRatio | 177.35% |
+| btcPrice | 73,899.51 MUSD |
+| pendingRepayment | 7.99 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 202.00 MUSD |
+| maxRepayable | 0.00 MUSD |
+| previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Healthy |
+| guard | 170% → 180% |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+<details><summary><code>unauthorized-simulation</code> (simulation (eth_call))</summary>
+
+| Field | Value |
+| --- | --- |
+| error | NotOwner() |
+
+</details>
+
+<details><summary><code>read-final</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| block | 16722625 |
+| loanStatus | active |
+| debt | 2,000.0000 MUSD |
+| collateral | 0.048000 BTC |
+| collateralRatio | 177.32% |
+| btcPrice | 73,885.77 MUSD |
+| pendingRepayment | 7.99 MUSD |
+| operatingCash | 2,490.00 MUSD |
+| unclassified | 0.00 MUSD |
+| totalIncome | 700.00 MUSD |
+| totalRepaid | 202.00 MUSD |
+| maxRepayable | 0.00 MUSD |
+| previewStatus | Cooldown |
+| previewAmount | 0.00 MUSD |
+| guardStatus | Healthy |
+| guard | 170% → 180% |
+| collateralBuffer | 0.000000 BTC |
+| btcHeldByAccount | 0.000000 BTC |
+
+</details>
+
+## Run 1: first deployment (v1), including the loan close
+
+| Role | Address |
+| --- | --- |
+| RePay factory v1 | [`0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c`](https://explorer.test.mezo.org/address/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c) · deployed in [`0x78dc084e1060fe0a…`](https://explorer.test.mezo.org/tx/0x78dc084e1060fe0a60342052847f116790ea76817083c935f197e8f1aaf380c4) (block 16356360) |
+| RePay account (demo, now closed) | [`0x76D5a6E6D0D494299A281006Bb5471d50acA388C`](https://explorer.test.mezo.org/address/0x76D5a6E6D0D494299A281006Bb5471d50acA388C) |
+
+### What run 1 demonstrates
+
+1. Account creation, Trove opening (0.045 BTC, debt 2,202 MUSD), and a 500 MUSD customer payment split 150 / 350.
+2. Keeper repayment: debt 2,202.00 → 2,052.00 MUSD.
+3. One-transaction permit payment; a direct transfer that stayed unclassified until the owner classified it.
+4. Owner capital deposited straight to pending repayment (not income).
+5. **Minimum-debt boundary.** With 76.50 MUSD pending but ~52 MUSD protocol-valid headroom, the keeper repaid exactly the headroom; debt landed on 2,000.0000 MUSD and the rest stayed pending ("waiting for enough MUSD to close").
+6. **Loan closed.** `closeLoan` burned 1,800.9636 MUSD (24.4988 MUSD from pending first, 1,776.4647 MUSD from operating cash) through `closeTrove`, and 0.045000 BTC of collateral came back to the account; the owner then withdrew it.
+
+### Steps
 
 | # | Step | Type | Result | What happened |
 | --- | --- | --- | --- | --- |
@@ -51,17 +402,22 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | 22 | `read-at-minimum-debt` | Read-only call | block 16356866 | Account state read |
 | 23 | `read-at-minimum-debt-after-cooldown` | Read-only call | block 16356911 | Account state read |
 | 24 | `read-waiting-to-close` | Read-only call | block 16357065 | Account state read |
+| 25 | `owner-close-loan` | On-chain transaction | [success · block 16722518](https://explorer.test.mezo.org/tx/0xc7a450e0148976cffc356e8f7b54af3bfc4ef571265dfd6593624d2fa511493f) | Owner closed the account's Trove (BorrowerOperations.closeTrove); pending repayment used first, then operating cash |
+| 26 | `read-after-close` | Read-only call | — | Account state after closing the loan |
+| 27 | `owner-withdraw-btc` | On-chain transaction | [success · block 16722523](https://explorer.test.mezo.org/tx/0x5d6e09182836dc457f3b6d0d677f9a18b05dd2d80b1b088ce0975b8ae28d228a) | Owner withdrew 0.045000 BTC (returned collateral) from the account to the owner wallet |
 
-## Recorded state
+### Recorded state
 
-### create-account (on-chain transaction)
+<details><summary><code>create-account</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
 | account | 0x76D5a6E6D0D494299A281006Bb5471d50acA388C |
 | owner | 0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB |
 
-### open-loan (on-chain transaction)
+</details>
+
+<details><summary><code>open-loan</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -69,7 +425,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | projectedTotalDebt | 2,202.0000 MUSD |
 | projectedCR | 164.54% |
 
-### read-after-open (read-only call)
+</details>
+
+<details><summary><code>read-after-open</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -88,7 +446,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | NothingPending |
 | previewAmount | 0.00 MUSD |
 
-### customer-pay (on-chain transaction)
+</details>
+
+<details><summary><code>customer-pay</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -96,7 +456,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | toRepayment | 150.00 MUSD |
 | toOperating | 350.00 MUSD |
 
-### read-after-pay (read-only call)
+</details>
+
+<details><summary><code>read-after-pay</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -115,7 +477,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | Ready |
 | previewAmount | 150.00 MUSD |
 
-### keeper-execute (on-chain transaction)
+</details>
+
+<details><summary><code>keeper-execute</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -124,20 +488,26 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | debtBefore | 2,202.0000 MUSD (2202000060009597885118 wei) |
 | debtAfter | 2,052.0000 MUSD (2052000060009597885118 wei) |
 
-### unauthorized-simulation (simulation (eth_call))
+</details>
+
+<details><summary><code>unauthorized-simulation</code> (simulation (eth_call))</summary>
 
 | Field | Value |
 | --- | --- |
 | error | NotOwner() |
 
-### unauthorized-transaction (on-chain transaction)
+</details>
+
+<details><summary><code>unauthorized-transaction</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
 | gasUsed | 60000 of 120000 limit (not out-of-gas) |
 | revertData | 0x30cd7471 = NotOwner() (eth_call replay at block 16356476 from the customer) |
 
-### read-after-repay (read-only call)
+</details>
+
+<details><summary><code>read-after-repay</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -156,7 +526,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | NothingPending |
 | previewAmount | 0.00 MUSD |
 
-### customer-pay-permit (on-chain transaction)
+</details>
+
+<details><summary><code>customer-pay-permit</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -164,7 +536,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | toRepayment | 15.00 MUSD |
 | toOperating | 35.00 MUSD |
 
-### read-after-direct-transfer (read-only call)
+</details>
+
+<details><summary><code>read-after-direct-transfer</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -183,7 +557,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | Ready |
 | previewAmount | 15.00 MUSD |
 
-### read-after-capital (read-only call)
+</details>
+
+<details><summary><code>read-after-capital</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -202,7 +578,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | Ready |
 | previewAmount | 52.00 MUSD |
 
-### keeper-execute-capped (on-chain transaction)
+</details>
+
+<details><summary><code>keeper-execute-capped</code> (on-chain transaction)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -212,7 +590,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | debtBefore | 2052001118621373095735 wei |
 | debtAfter | 2000000000000000000000 wei (= minNetDebt 1800 + gas compensation 200) |
 
-### read-at-minimum-debt (read-only call)
+</details>
+
+<details><summary><code>read-at-minimum-debt</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -231,7 +611,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | Cooldown |
 | previewAmount | 0.00 MUSD |
 
-### read-at-minimum-debt-after-cooldown (read-only call)
+</details>
+
+<details><summary><code>read-at-minimum-debt-after-cooldown</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -250,7 +632,9 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | Cooldown |
 | previewAmount | 0.00 MUSD |
 
-### read-waiting-to-close (read-only call)
+</details>
+
+<details><summary><code>read-waiting-to-close</code> (read-only call)</summary>
 
 | Field | Value |
 | --- | --- |
@@ -269,39 +653,54 @@ Local tests (Foundry, Vitest, Playwright) are listed separately at the end and a
 | previewStatus | AtMinimumDebt |
 | previewAmount | 0.00 MUSD |
 
-## What this demonstrates
+</details>
 
-1. **Account creation.** A RePay account was created by the factory with the owner wallet (`create-account`).
-2. **Real Mezo Trove owned by the account.** `openLoan` deposited 0.045 BTC through `BorrowerOperations.openTrove`; debt 2,202 MUSD (2,000 + 0.1% fee + 200 gas compensation).
-3. **Borrowed MUSD is not income.** After opening, `totalIncome` = 0 and the 2,000 MUSD sits in operating cash.
-4. **Tracked customer payment from a separate wallet.** The customer approved exactly 500 MUSD and called `pay`: 150 to pending repayment, 350 to operating (30%).
-5. **Keeper repayment changed real protocol debt.** A third wallet with no authority called `executeRepayment`: debt 2,202.00 → 2,052.00 MUSD, CR 164.5% → 176.6%.
-6. **Rejected unauthorized action.** The customer's `withdrawOperating` simulation reverted with `NotOwner()`, and its on-chain `setPolicy` transaction was mined and reverted.
-7. **One-transaction permit payment.** `payWithPermit` with an EIP-2612 signature over exactly 50 MUSD.
-8. **Direct transfer stays unclassified.** A plain ERC-20 transfer of 5 MUSD did not change `totalIncome` until the owner classified it as revenue.
-9. **Minimum-debt boundary handled.** With 76.50 MUSD pending but only ~52 MUSD protocol-valid headroom, the keeper repaid exactly the headroom. Debt landed on **2,000.0000 MUSD** (1,800 minimum net debt + 200 gas compensation), the remainder stayed pending, and status became "waiting for enough MUSD to close".
-10. **Interest drift resolved on-chain.** The previewed amount (52.001111) and the executed amount (52.001119) differ by interest accrued between blocks; the contract computed it in the executing block.
+<details><summary><code>owner-close-loan</code> (on-chain transaction)</summary>
+
+| Field | Value |
+| --- | --- |
+| debtRepaid | 1,800.9636 MUSD |
+| fromPending | 24.4988 MUSD |
+| fromOperating | 1,776.4647 MUSD |
+| collateralReturned | 0.045000 BTC |
+
+</details>
+
+<details><summary><code>read-after-close</code> (read-only call)</summary>
+
+| Field | Value |
+| --- | --- |
+| loanStatus | closedByOwner |
+| debt | 0.0000 MUSD |
+| collateral | 0.000000 BTC |
+| pendingRepayment | 0.00 MUSD |
+| operatingCash | 612.03 MUSD |
+| btcHeldByAccount | 0.045000 BTC |
+
+</details>
 
 ## Fork simulation (not live evidence)
 
-`MEZO_FORK=1 forge test --match-contract MezoForkTest -vv` runs the full flow against the real
-Mezo testnet bytecode on a local fork. One component is **substituted**: Mezo's BTC price oracle is a
-chain precompile (`0x7b7c…0015`) that local EVMs cannot execute (`EvmError: NotActivated`), so the
-fork test mocks only its `latestRoundData()`/`decimals()` at a realistic price.
+`pnpm contracts:fork` runs the full flow and the collateral guard against the real Mezo testnet
+bytecode on a local fork. One component is **substituted**: Mezo's BTC price oracle is a chain
+precompile (`0x7b7c…0015`) that local EVMs cannot execute (`EvmError: NotActivated`), so the fork
+test mocks only its `latestRoundData()`/`decimals()`. The guard fork test drops the mocked price to
+62,000 and shows `protect` taking the real Trove from 142.9% to 180.0%.
 
 ## Local test suites (not live evidence)
 
 | Suite | Command | Result at time of writing |
 | --- | --- | --- |
-| Foundry unit + fuzz + invariant | `pnpm contracts:test` | 61 tests passed (55 unit/fuzz, 6 invariants) |
-| Foundry fork (real Mezo bytecode, mocked oracle) | `pnpm contracts:fork` | 1 passed |
-| SDK (Vitest) | `pnpm --filter @repay/sdk test` | 18 passed |
-| Keeper (Vitest) | `pnpm --filter @repay/keeper test` | 6 passed |
-| Web unit (Vitest) | `pnpm --filter @repay/web test` | 7 passed |
-| Browser (Playwright, desktop + mobile) | `pnpm --filter @repay/web e2e` | 46 passed |
+| Foundry unit + fuzz + invariant | `pnpm contracts:test` | 79 passed (72 unit/fuzz incl. guard and permission matrix, 7 invariants) |
+| Foundry fork (real Mezo bytecode, mocked oracle) | `pnpm contracts:fork` | 2 passed |
+| SDK (Vitest) | `pnpm --filter @repay/sdk test` | 20 passed |
+| Keeper (Vitest) | `pnpm --filter @repay/keeper test` | 8 passed |
+| Web unit (Vitest) | `pnpm --filter @repay/web test` | 10 passed |
+| Browser (Playwright, desktop + mobile) | `pnpm --filter @repay/web e2e` | see `docs/DEPLOYMENTS.md` |
 
 ## Source verification
 
-- Factory: Sourcify **exact match** (creation + runtime): https://repo.sourcify.dev/31611/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c
-- Account implementation: Sourcify **exact match** (runtime): https://repo.sourcify.dev/31611/0x469C9d8Fa5c8c8C8334f39ae2e52064B9e3DA9DA
-- Blockscout (explorer.test.mezo.org): verification submitted via API; the explorer had not marked the contracts verified at time of writing. Local `forge inspect` bytecode, including the metadata hash, matches the deployed code byte for byte.
+- v2 factory: Sourcify **exact match** (creation + runtime): https://repo.sourcify.dev/31611/0xceb2223F6F81991E671781A77f8f3469d6FDe56b
+- v2 account implementation: Sourcify **exact match** (runtime): https://repo.sourcify.dev/31611/0xEE5b9ABFd95deb642bc03089b43dA0C5e47D1A56
+- v1 factory and implementation: Sourcify exact match: https://repo.sourcify.dev/31611/0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c
+- Blockscout (explorer.test.mezo.org) does not show Sourcify results; its own verification API did not mark v1 verified at time of writing.

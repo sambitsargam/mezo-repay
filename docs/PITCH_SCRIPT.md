@@ -9,7 +9,7 @@ while customer revenue arrives in the same wallet you spend from."
 **0:15 Product (15 s).** "Mezo RePay lets your income pay down your Bitcoin loan. You choose a share,
 say 30%, and every customer payment is split once: 30% set aside for the loan, 70% kept as operating cash."
 
-**0:30 Live account (35 s).** *[Screen: /app?view=0x76D5…388C]* "This is a real account on Mezo testnet.
+**0:30 Live account (35 s).** *[Screen: /app?view=0x97D6…99D7]* "This is a real account on Mezo testnet.
 The account contract itself owns this Trove: 0.045 BTC collateral. A customer, from a separate wallet,
 paid 500 MUSD through a payment link. 150 went to pending repayment automatically. Then a keeper wallet
 with no special permissions called one function, and the debt dropped from 2,202 to 2,052."
@@ -31,9 +31,9 @@ Mezo RePay: ordinary income, real repayment."
 ## Shot list
 
 1. Home page hero (3 s).
-2. `/app?view=0x76D5a6E6D0D494299A281006Bb5471d50acA388C`: dashboard stats and allocation (10 s).
+2. `/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7`: dashboard stats and allocation (10 s).
 3. Activity → click `Loan repayment` explorer link → explorer tx page (10 s).
-4. `/pay/0x76D5…388C?amount=25&ref=DEMO&chain=31611`: "Verified RePay account" badge (8 s).
+4. `/pay/0x97D6…99D7?amount=25&ref=DEMO&chain=31611`: "Verified RePay account" badge (8 s).
 5. Automation page: "What a keeper can and cannot do" (8 s).
 6. Explorer: the reverted `setPolicy` tx `0x21b086fb…e58a` (5 s).
 7. Loan page: "Waiting for enough MUSD to close the loan" notice (6 s).

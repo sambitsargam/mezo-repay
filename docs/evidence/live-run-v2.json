@@ -1,0 +1,430 @@
+{
+  "network": "mezo-testnet",
+  "chainId": 31611,
+  "factory": "0xceb2223F6F81991E671781A77f8f3469d6FDe56b",
+  "account": "0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7",
+  "owner": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB",
+  "customer": "0xED7a26AD75c224728EBA1059BE7E1864c2Fab1ed",
+  "keeper": "0x2f7b81940281d513b0DbfebE78005030391e1c02",
+  "steps": [
+    {
+      "step": "create-account",
+      "type": "transaction",
+      "at": "2026-11-11T23:01:14.388Z",
+      "txHash": "0xdcbba1361dfb6d6b3a53b98fa0009db0bde8eab8087c3923f84afa41230503b3",
+      "explorer": "https://explorer.test.mezo.org/tx/0xdcbba1361dfb6d6b3a53b98fa0009db0bde8eab8087c3923f84afa41230503b3",
+      "blockNumber": "16722558",
+      "status": "success",
+      "summary": "Owner created a RePay account (30% repayment, 5 min cooldown, 10 MUSD minimum)",
+      "data": {
+        "account": "0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7",
+        "owner": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB"
+      }
+    },
+    {
+      "step": "open-loan",
+      "type": "transaction",
+      "at": "2026-11-11T23:01:28.132Z",
+      "txHash": "0x73834a842ad156a75129d94832579d7bfd4de05cb21fdb582e387638e6bab27c",
+      "explorer": "https://explorer.test.mezo.org/tx/0x73834a842ad156a75129d94832579d7bfd4de05cb21fdb582e387638e6bab27c",
+      "blockNumber": "16722566",
+      "status": "success",
+      "summary": "Account opened a Mezo Trove: 0.045000 BTC collateral, borrowed 2,000.00 MUSD",
+      "data": {
+        "borrowingFee": "2.0000 MUSD",
+        "projectedTotalDebt": "2,202.0000 MUSD",
+        "projectedCR": "150.93%"
+      }
+    },
+    {
+      "step": "read-after-open",
+      "type": "read",
+      "at": "2026-11-11T23:01:29.494Z",
+      "summary": "Account state after opening",
+      "data": {
+        "block": "16722566",
+        "loanStatus": "active",
+        "debt": "2,202.0000 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "150.91%",
+        "btcPrice": "73,849.01 MUSD",
+        "pendingRepayment": "0.00 MUSD",
+        "operatingCash": "2,000.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "0.00 MUSD",
+        "totalRepaid": "0.00 MUSD",
+        "maxRepayable": "202.00 MUSD",
+        "previewStatus": "NothingPending",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Disabled",
+        "guard": "off",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "customer-musd",
+      "type": "transaction",
+      "at": "2026-11-11T23:01:47.272Z",
+      "txHash": "0xd8309a858dc28e950c0a13a1446dd13a747e0af1f6c8c8bc8ba9a692ff8b8a3b",
+      "explorer": "https://explorer.test.mezo.org/tx/0xd8309a858dc28e950c0a13a1446dd13a747e0af1f6c8c8bc8ba9a692ff8b8a3b",
+      "blockNumber": "16722571",
+      "status": "success",
+      "summary": "Customer wallet opened its own Trove to obtain 1,800.00 MUSD (independent of the RePay account)",
+      "data": {}
+    },
+    {
+      "step": "customer-approve",
+      "type": "transaction",
+      "at": "2026-11-11T23:01:58.816Z",
+      "txHash": "0x2e6cb8daf1fd4d664dd08c4aa85dd0892f6d4efaef4ab1fdfe05f08d40b8fa52",
+      "explorer": "https://explorer.test.mezo.org/tx/0x2e6cb8daf1fd4d664dd08c4aa85dd0892f6d4efaef4ab1fdfe05f08d40b8fa52",
+      "blockNumber": "16722573",
+      "status": "success",
+      "summary": "Customer approved exactly 500.00 MUSD for the account",
+      "data": {}
+    },
+    {
+      "step": "customer-pay",
+      "type": "transaction",
+      "at": "2026-11-11T23:02:05.177Z",
+      "txHash": "0x57c1e0a27a8f56c7f48a5ada8540d13103b564063547e7fa267c418c082fe25c",
+      "explorer": "https://explorer.test.mezo.org/tx/0x57c1e0a27a8f56c7f48a5ada8540d13103b564063547e7fa267c418c082fe25c",
+      "blockNumber": "16722575",
+      "status": "success",
+      "summary": "Customer paid 500.00 MUSD with reference INV-2026-101",
+      "data": {
+        "paymentId": "1",
+        "toRepayment": "150.00 MUSD",
+        "toOperating": "350.00 MUSD"
+      }
+    },
+    {
+      "step": "read-after-pay",
+      "type": "read",
+      "at": "2026-11-11T23:02:06.676Z",
+      "summary": "Account state after payment",
+      "data": {
+        "block": "16722575",
+        "loanStatus": "active",
+        "debt": "2,202.0000 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "150.96%",
+        "btcPrice": "73,873.97 MUSD",
+        "pendingRepayment": "150.00 MUSD",
+        "operatingCash": "2,350.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "500.00 MUSD",
+        "totalRepaid": "0.00 MUSD",
+        "maxRepayable": "202.00 MUSD",
+        "previewStatus": "Ready",
+        "previewAmount": "150.00 MUSD",
+        "guardStatus": "Disabled",
+        "guard": "off",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "customer-pay-permit",
+      "type": "transaction",
+      "at": "2026-11-11T23:02:22.910Z",
+      "txHash": "0xfab5349a16b8238094c48a2a1e37465fe2ebdd03ff0cc2b706257989743dd6da",
+      "explorer": "https://explorer.test.mezo.org/tx/0xfab5349a16b8238094c48a2a1e37465fe2ebdd03ff0cc2b706257989743dd6da",
+      "blockNumber": "16722579",
+      "status": "success",
+      "summary": "Customer paid 100.00 MUSD in one transaction using an EIP-2612 permit (ref INV-2026-102)",
+      "data": {
+        "paymentId": "2",
+        "toRepayment": "30.00 MUSD",
+        "toOperating": "70.00 MUSD"
+      }
+    },
+    {
+      "step": "customer-approve",
+      "type": "transaction",
+      "at": "2026-11-11T23:02:45.326Z",
+      "txHash": "0x69d0bf2b8f1f1256a046d9d097a764b9d71cd759633613508f296043b003ba54",
+      "explorer": "https://explorer.test.mezo.org/tx/0x69d0bf2b8f1f1256a046d9d097a764b9d71cd759633613508f296043b003ba54",
+      "blockNumber": "16722585",
+      "status": "success",
+      "summary": "Customer approved exactly 100.00 MUSD for the account",
+      "data": {}
+    },
+    {
+      "step": "customer-pay",
+      "type": "transaction",
+      "at": "2026-11-11T23:02:52.626Z",
+      "txHash": "0x70d30159b2554e63c0f9f9a5b110f2b0a2858be087c9c3dc91fe766a8e9e8ee6",
+      "explorer": "https://explorer.test.mezo.org/tx/0x70d30159b2554e63c0f9f9a5b110f2b0a2858be087c9c3dc91fe766a8e9e8ee6",
+      "blockNumber": "16722586",
+      "status": "success",
+      "summary": "Customer paid 100.00 MUSD with reference INV-2026-103",
+      "data": {
+        "paymentId": "3",
+        "toRepayment": "30.00 MUSD",
+        "toOperating": "70.00 MUSD"
+      }
+    },
+    {
+      "step": "read-after-pay",
+      "type": "read",
+      "at": "2026-11-11T23:02:54.265Z",
+      "summary": "Account state after payment",
+      "data": {
+        "block": "16722586",
+        "loanStatus": "active",
+        "debt": "2,202.0000 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "151.15%",
+        "btcPrice": "73,965.71 MUSD",
+        "pendingRepayment": "210.00 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "0.00 MUSD",
+        "maxRepayable": "202.00 MUSD",
+        "previewStatus": "Ready",
+        "previewAmount": "202.00 MUSD",
+        "guardStatus": "Disabled",
+        "guard": "off",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "owner-set-policy",
+      "type": "transaction",
+      "at": "2026-11-11T23:03:25.147Z",
+      "txHash": "0xd2be3af670846234548077468b897e9a341bae7420283e37da8eff84f2099982",
+      "explorer": "https://explorer.test.mezo.org/tx/0xd2be3af670846234548077468b897e9a341bae7420283e37da8eff84f2099982",
+      "blockNumber": "16722593",
+      "status": "success",
+      "summary": "Owner updated the policy: 30% to repayment, at most 100.00 MUSD per automated repayment, 5 min cooldown",
+      "data": {}
+    },
+    {
+      "step": "keeper-execute",
+      "type": "transaction",
+      "at": "2026-11-11T23:03:34.772Z",
+      "txHash": "0xf941c705e65cc69a98cf852a9330b61223a8a238c1f9acea52f2d9ffc6838428",
+      "explorer": "https://explorer.test.mezo.org/tx/0xf941c705e65cc69a98cf852a9330b61223a8a238c1f9acea52f2d9ffc6838428",
+      "blockNumber": "16722597",
+      "status": "success",
+      "summary": "Keeper repaid 100.00 MUSD from pending (permissionless, no fee)",
+      "data": {
+        "debtBefore": "2,202.0000 MUSD",
+        "debtAfter": "2,102.0000 MUSD"
+      }
+    },
+    {
+      "step": "read-after-keeper-execute",
+      "type": "read",
+      "at": "2026-11-11T23:04:01.850Z",
+      "summary": "Account state read",
+      "data": {
+        "block": "16722603",
+        "loanStatus": "active",
+        "debt": "2,102.0001 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "158.20%",
+        "btcPrice": "73,900.99 MUSD",
+        "pendingRepayment": "110.00 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "100.00 MUSD",
+        "maxRepayable": "102.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Disabled",
+        "guard": "off",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "owner-set-guard",
+      "type": "transaction",
+      "at": "2026-11-11T23:04:25.870Z",
+      "txHash": "0xb667b9cbce8c5f70324d0dfb75c0bc2bc66543c40b55bb468a5fad73d149df94",
+      "explorer": "https://explorer.test.mezo.org/tx/0xb667b9cbce8c5f70324d0dfb75c0bc2bc66543c40b55bb468a5fad73d149df94",
+      "blockNumber": "16722608",
+      "status": "success",
+      "summary": "Owner set the collateral guard: protect below 170%, aim for 180%",
+      "data": {}
+    },
+    {
+      "step": "read-after-guard",
+      "type": "read",
+      "at": "2026-11-11T23:04:27.357Z",
+      "summary": "Guard status after setting it",
+      "data": {
+        "block": "16722608",
+        "loanStatus": "active",
+        "debt": "2,102.0001 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "158.22%",
+        "btcPrice": "73,906.94 MUSD",
+        "pendingRepayment": "110.00 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "100.00 MUSD",
+        "maxRepayable": "102.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Protectable",
+        "guard": "170% → 180%",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "owner-fund-buffer",
+      "type": "transaction",
+      "at": "2026-11-11T23:04:33.910Z",
+      "txHash": "0x1a37221057b1f7639195bfde8c279789e3e92fe638408bdedec79eda82650dbb",
+      "explorer": "https://explorer.test.mezo.org/tx/0x1a37221057b1f7639195bfde8c279789e3e92fe638408bdedec79eda82650dbb",
+      "blockNumber": "16722611",
+      "status": "success",
+      "summary": "Owner reserved 0.003000 BTC in the account as the guard's collateral buffer",
+      "data": {}
+    },
+    {
+      "step": "read-before-protect",
+      "type": "read",
+      "at": "2026-11-11T23:04:40.144Z",
+      "summary": "Account state read",
+      "data": {
+        "block": "16722612",
+        "loanStatus": "active",
+        "debt": "2,102.0001 MUSD",
+        "collateral": "0.045000 BTC",
+        "collateralRatio": "158.20%",
+        "btcPrice": "73,900.37 MUSD",
+        "pendingRepayment": "110.00 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "100.00 MUSD",
+        "maxRepayable": "102.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Protectable",
+        "guard": "170% → 180%",
+        "collateralBuffer": "0.003000 BTC",
+        "btcHeldByAccount": "0.003000 BTC"
+      }
+    },
+    {
+      "step": "keeper-protect",
+      "type": "transaction",
+      "at": "2026-11-11T23:04:50.187Z",
+      "txHash": "0x1701f39adca27596085f00bc483e9aa45a6bfd021bc372a5cfbfd15724c44aa9",
+      "explorer": "https://explorer.test.mezo.org/tx/0x1701f39adca27596085f00bc483e9aa45a6bfd021bc372a5cfbfd15724c44aa9",
+      "blockNumber": "16722614",
+      "status": "success",
+      "summary": "Keeper called protect: repaid 102.00 MUSD from pending and added 0.003000 BTC from the buffer",
+      "data": {
+        "ratioBefore": "158.20%",
+        "ratioAfter": "177.35%",
+        "repaid": "102.0001 MUSD",
+        "collateralAdded": "0.003000 BTC"
+      }
+    },
+    {
+      "step": "read-after-keeper-protect",
+      "type": "read",
+      "at": "2026-11-11T23:04:51.577Z",
+      "summary": "Account state after the keeper call",
+      "data": {
+        "block": "16722614",
+        "loanStatus": "active",
+        "debt": "2,000.0000 MUSD",
+        "collateral": "0.048000 BTC",
+        "collateralRatio": "177.35%",
+        "btcPrice": "73,899.51 MUSD",
+        "pendingRepayment": "7.99 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "202.00 MUSD",
+        "maxRepayable": "0.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Healthy",
+        "guard": "170% → 180%",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    },
+    {
+      "step": "owner-add-collateral",
+      "type": "transaction",
+      "at": "2026-11-11T23:05:08.917Z",
+      "txHash": "0x736fcc565b05db96996a43edb7288b8dc7436f24d0a84b674a057c1e5975d8fc",
+      "explorer": "https://explorer.test.mezo.org/tx/0x736fcc565b05db96996a43edb7288b8dc7436f24d0a84b674a057c1e5975d8fc",
+      "blockNumber": "16722619",
+      "status": "success",
+      "summary": "Owner added 0.000500 BTC collateral to the account's Trove (BorrowerOperations.addColl)",
+      "data": {}
+    },
+    {
+      "step": "owner-withdraw-collateral",
+      "type": "transaction",
+      "at": "2026-11-11T23:05:21.402Z",
+      "txHash": "0x809d93a933a56c975780d9ca52e7f680425696356c9c3c273b57bc50c05475fb",
+      "explorer": "https://explorer.test.mezo.org/tx/0x809d93a933a56c975780d9ca52e7f680425696356c9c3c273b57bc50c05475fb",
+      "blockNumber": "16722621",
+      "status": "success",
+      "summary": "Owner withdrew 0.000500 BTC collateral from the Trove to the owner wallet (BorrowerOperations.withdrawColl)",
+      "data": {}
+    },
+    {
+      "step": "unauthorized-simulation",
+      "type": "simulation",
+      "at": "2026-11-11T23:05:26.576Z",
+      "summary": "Customer attempted withdrawOperating; contract rejected it",
+      "data": {
+        "error": "NotOwner()"
+      }
+    },
+    {
+      "step": "unauthorized-transaction",
+      "type": "transaction",
+      "at": "2026-11-11T23:05:29.433Z",
+      "txHash": "0xac6b64d885588bc34e6ba168ab12eb67ebfc95e1759e00c3ecded911cceeee2c",
+      "explorer": "https://explorer.test.mezo.org/tx/0xac6b64d885588bc34e6ba168ab12eb67ebfc95e1759e00c3ecded911cceeee2c",
+      "blockNumber": "16722624",
+      "status": "reverted",
+      "summary": "Customer sent setPolicy on-chain; it reverted with NotOwner (policy unchanged)"
+    },
+    {
+      "step": "read-final",
+      "type": "read",
+      "at": "2026-11-11T23:05:35.582Z",
+      "summary": "Account state read",
+      "data": {
+        "block": "16722625",
+        "loanStatus": "active",
+        "debt": "2,000.0000 MUSD",
+        "collateral": "0.048000 BTC",
+        "collateralRatio": "177.32%",
+        "btcPrice": "73,885.77 MUSD",
+        "pendingRepayment": "7.99 MUSD",
+        "operatingCash": "2,490.00 MUSD",
+        "unclassified": "0.00 MUSD",
+        "totalIncome": "700.00 MUSD",
+        "totalRepaid": "202.00 MUSD",
+        "maxRepayable": "0.00 MUSD",
+        "previewStatus": "Cooldown",
+        "previewAmount": "0.00 MUSD",
+        "guardStatus": "Healthy",
+        "guard": "170% → 180%",
+        "collateralBuffer": "0.000000 BTC",
+        "btcHeldByAccount": "0.000000 BTC"
+      }
+    }
+  ]
+}

@@ -424,7 +424,7 @@
       "explorer": "https://explorer.test.mezo.org/tx/0x5d6e09182836dc457f3b6d0d677f9a18b05dd2d80b1b088ce0975b8ae28d228a",
       "blockNumber": "16722523",
       "status": "success",
-      "summary": "Owner withdrew 0.045000 BTC BTC (returned collateral) from the account to the owner wallet",
+      "summary": "Owner withdrew 0.045000 BTC (returned collateral) from the account to the owner wallet",
       "data": {}
     }
   ]

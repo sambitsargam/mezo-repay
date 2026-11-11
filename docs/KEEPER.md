@@ -46,7 +46,7 @@ The keeper also reads the repository root `.env` if present. Never commit either
 pnpm --filter @repay/keeper dry-run -- --once
 
 # Single account, one pass
-pnpm --filter @repay/keeper once -- --account 0x76D5a6E6D0D494299A281006Bb5471d50acA388C
+pnpm --filter @repay/keeper once -- --account 0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
 
 # Live, continuous, with status endpoint on :8787
 KEEPER_MODE=live pnpm --filter @repay/keeper start

@@ -51,7 +51,7 @@ borrowing MUSD against BTC.
 
 ## Actual deployment status
 
-- Contracts **deployed to Mezo testnet**; factory `0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c`,
+- Contracts **deployed to Mezo testnet**; factory `0xceb2223F6F81991E671781A77f8f3469d6FDe56b`,
   Sourcify exact match.
 - Real end-to-end run on testnet: account → Trove → customer payments (approve and permit) → keeper
   repayments → debt 2,202 → 2,000 MUSD → rejected unauthorized action. See `docs/EVIDENCE.md`.

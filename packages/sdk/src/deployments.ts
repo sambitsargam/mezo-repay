@@ -14,6 +14,8 @@ export interface ProtocolAddresses {
 }
 
 export interface RePayDeployment {
+  version?: string;
+  status?: string;
   factory: Address;
   implementation: Address;
   deploymentBlock: number;
@@ -33,6 +35,8 @@ export interface NetworkDeployment {
   protocol: ProtocolAddresses;
   /** null until RePay contracts are deployed to this network. Never filled with placeholders. */
   repay: RePayDeployment | null;
+  /** Earlier deployments, kept for evidence links. Not used for discovery. */
+  previous?: RePayDeployment[];
 }
 
 /** Shared deployment registry used by the web app, keeper, smoke tests, and docs. */

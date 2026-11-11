@@ -111,9 +111,21 @@ function save() {
   writeFileSync(EVIDENCE, JSON.stringify(ev, null, 2) + "\n");
 }
 
+let lastTxBlock = 0n;
+
+/** Load-balanced RPC nodes can lag a block; never read state older than our last transaction. */
+async function waitForBlock(min: bigint) {
+  for (let i = 0; i < 40; i++) {
+    if ((await pub.getBlockNumber()) >= min) return;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  throw new Error(`RPC stuck below block ${min}`);
+}
+
 async function recordTx(step: string, hash: Hash, summary: string, data: Record<string, string> = {}) {
   console.log(`${step}: submitted ${hash}`);
-  const r = await pub.waitForTransactionReceipt({ hash, timeout: 180_000 });
+  const r = await pub.waitForTransactionReceipt({ hash, timeout: 180_000, retryCount: 20 });
+  lastTxBlock = r.blockNumber;
   ev.steps.push({
     step,
     type: "transaction",
@@ -138,6 +150,7 @@ function requireAccount(): Address {
 
 /** Minimal reads that work for every deployed version (v1 accounts lack the v2 snapshot fields). */
 async function basicState(account: Address) {
+  await waitForBlock(lastTxBlock);
   const [loan, pending, operating, btc] = await Promise.all([
     pub.readContract({ address: account, abi: repayAccountAbi, functionName: "loanState" }),
     pub.readContract({ address: account, abi: repayAccountAbi, functionName: "pendingRepayment" }),
@@ -155,7 +168,10 @@ async function basicState(account: Address) {
 }
 
 async function snapshotData(account: Address) {
-  const s = await readAccountSnapshot(pub, account);
+  await waitForBlock(lastTxBlock);
+  let s = await readAccountSnapshot(pub, account);
+  for (let i = 0; s.blockNumber < lastTxBlock && i < 10; i++) s = await readAccountSnapshot(pub, account);
+  if (s.blockNumber < lastTxBlock) throw new Error("stale snapshot");
   const p = await readProtocolParams(pub, d.protocol);
   return {
     snap: s,
@@ -215,13 +231,16 @@ const steps: Record<string, () => Promise<void>> = {
       minExecution: parseEther("10"),
       maxExecution: 0n,
     };
-    const hash = await owner.writeContract({
-      address: repay.factory,
-      abi: repayAccountFactoryAbi,
-      functionName: "createAccount",
-      args: [policy],
-    });
-    const r = await pub.waitForTransactionReceipt({ hash });
+    // `create 0x<hash>` records an already-mined createAccount (e.g. after an RPC receipt timeout).
+    const hash: Hash = args[1]?.startsWith("0x")
+      ? (args[1] as Hash)
+      : await owner.writeContract({
+          address: repay.factory,
+          abi: repayAccountFactoryAbi,
+          functionName: "createAccount",
+          args: [policy],
+        });
+    const r = await pub.waitForTransactionReceipt({ hash, timeout: 180_000, retryCount: 20 });
     const created = parseEventLogs({ abi: repayAccountFactoryAbi, logs: r.logs, eventName: "AccountCreated" })[0]!;
     ev.account = created.args.account;
     save();
@@ -437,7 +456,7 @@ const steps: Record<string, () => Promise<void>> = {
     const s = await readAccountSnapshot(pub, account);
     const fn = s.guardStatus === "Protectable" ? "protect" : s.previewStatus === "Ready" ? "executeRepayment" : null;
     if (!fn) throw new Error(`nothing to do: guard ${s.guardStatus}, repayment ${s.previewStatus}`);
-    const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: fn, args: [ZERO, ZERO], account: keeperAddr });
+    const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: fn, args: [ZERO, ZERO], account: keeperAcct });
     const hash = await keeperWallet.writeContract(sim.request);
     const r = await recordTx(fn === "protect" ? "keeper-protect" : "keeper-execute", hash, fn === "protect" ? "Keeper called protect (permissionless)" : "Keeper executed the pending repayment (permissionless, no fee)");
     const last = ev.steps[ev.steps.length - 1]!;
@@ -455,6 +474,16 @@ const steps: Record<string, () => Promise<void>> = {
     ev.steps.push({ step: `read-after-${last.step}`, type: "read", at: new Date().toISOString(), summary: "Account state after the keeper call", data });
     save();
     console.log(data);
+  },
+
+  async policy() {
+    // policy <repayment %> <maxExecution MUSD, 0 = no cap>
+    const account = requireAccount();
+    const pct = Number(args[1] ?? "30");
+    const max = parseEther(args[2] ?? "0");
+    const policy = { repaymentBps: Math.round(pct * 100), cooldown: 300, paused: false, operatingReserve: 0n, minExecution: parseEther("10"), maxExecution: max };
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "setPolicy", args: [policy] });
+    await recordTx("owner-set-policy", hash, `Owner updated the policy: ${pct}% to repayment, at most ${max ? formatMusd(max) : "no cap"} per automated repayment, 5 min cooldown`);
   },
 
   async guard() {
@@ -527,7 +556,7 @@ const steps: Record<string, () => Promise<void>> = {
     }
     const amount = args[1] ? parseEther(args[1]) : bal - buffer;
     const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "withdrawBtc", args: [ownerAcct.address, amount] });
-    await recordTx("owner-withdraw-btc", hash, `Owner withdrew ${formatBtc(amount)} BTC (returned collateral) from the account to the owner wallet`);
+    await recordTx("owner-withdraw-btc", hash, `Owner withdrew ${formatBtc(amount)} (returned collateral) from the account to the owner wallet`);
   },
 
   async unauthorized() {
