@@ -1,7 +1,7 @@
 import type { Address, PublicClient } from "viem";
 import { repayAccountAbi } from "./abi/RePayAccount";
 import { borrowerOperationsAbi, interestRateManagerAbi, priceFeedAbi, troveManagerAbi } from "./abi/mezo";
-import { guardStatus, repaymentStatus, troveStatus, type GuardStatus, type RepaymentStatus, type TroveStatus } from "./accounting";
+import { closeStatus, guardStatus, repaymentStatus, troveStatus, type CloseStatus, type GuardStatus, type RepaymentStatus, type TroveStatus } from "./accounting";
 import type { ProtocolAddresses } from "./deployments";
 
 export interface Policy {
@@ -55,12 +55,42 @@ export interface AccountSnapshot {
   guardStatus: GuardStatus;
   totalProtectRepaid: bigint;
   totalProtectTopUp: bigint;
+  /** Owner opted in to keeper-executed close (v3+; false on older accounts). */
+  autoClose: boolean;
+  /** MUSD needed to close the loan now (debt minus Mezo's gas compensation). */
+  closeRequired: bigint;
+  closeStatus: CloseStatus;
+  /** Contract version ("2" accounts have no auto-close). */
+  version: number;
   blockNumber: bigint;
 }
 
+type SnapshotFn = Extract<(typeof repayAccountAbi)[number], { type: "function"; name: "snapshot" }>;
+const V3_ONLY = new Set(["autoClose", "closeRequired", "closeStatus"]);
+/** v2 accounts return the same struct without the three auto-close fields. */
+const legacySnapshotAbi = repayAccountAbi
+  .filter((e): e is SnapshotFn => e.type === "function" && (e as { name?: string }).name === "snapshot")
+  .map((e) => ({
+    ...e,
+    outputs: e.outputs.map((o) => ({ ...o, components: (o as { components: readonly { name: string }[] }).components.filter((c) => !V3_ONLY.has(c.name)) })),
+  }));
+
 export async function readAccountSnapshot(client: PublicClient, address: Address): Promise<AccountSnapshot> {
   const blockNumber = await client.getBlockNumber();
-  const s = await client.readContract({ address, abi: repayAccountAbi, functionName: "snapshot", blockNumber });
+  let version = 3;
+  let s: Awaited<ReturnType<typeof readV3>> & { autoClose?: boolean; closeRequired?: bigint; closeStatus?: number };
+  try {
+    s = await readV3(client, address, blockNumber);
+  } catch (err) {
+    // Older accounts return a shorter struct; decode it with the legacy shape.
+    const legacy = (await client
+      .readContract({ address, abi: legacySnapshotAbi as unknown as typeof repayAccountAbi, functionName: "snapshot", blockNumber })
+      .catch(() => {
+        throw err;
+      })) as typeof s;
+    s = { ...legacy, autoClose: false, closeRequired: 0n, closeStatus: 1 };
+    version = 2;
+  }
   return {
     address,
     owner: s.owner,
@@ -102,8 +132,16 @@ export async function readAccountSnapshot(client: PublicClient, address: Address
     guardStatus: guardStatus(s.guardStatus),
     totalProtectRepaid: s.totalProtectRepaid,
     totalProtectTopUp: s.totalProtectTopUp,
+    autoClose: s.autoClose ?? false,
+    closeRequired: s.closeRequired ?? 0n,
+    closeStatus: closeStatus(Number(s.closeStatus ?? 1)),
+    version,
     blockNumber,
   };
+}
+
+function readV3(client: PublicClient, address: Address, blockNumber: bigint) {
+  return client.readContract({ address, abi: repayAccountAbi, functionName: "snapshot", blockNumber });
 }
 
 export interface ProtocolParams {

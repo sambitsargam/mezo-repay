@@ -115,6 +115,19 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "autoClose",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "borrow",
     "inputs": [
       {
@@ -193,6 +206,24 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "closePreview",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "required",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum RePayAccount.CloseStatus"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "collSurplusPool",
     "inputs": [],
     "outputs": [
@@ -233,6 +264,19 @@ export const repayAccountAbi = [
       }
     ],
     "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "executeClose",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "debtRepaid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable"
   },
   {
@@ -740,6 +784,19 @@ export const repayAccountAbi = [
   },
   {
     "type": "function",
+    "name": "setAutoClose",
+    "inputs": [
+      {
+        "name": "enabled",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setGuard",
     "inputs": [
       {
@@ -1034,6 +1091,21 @@ export const repayAccountAbi = [
             "name": "totalProtectTopUp",
             "type": "uint256",
             "internalType": "uint256"
+          },
+          {
+            "name": "autoClose",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "closeRequired",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "closeStatus",
+            "type": "uint8",
+            "internalType": "uint8"
           }
         ]
       }
@@ -1264,6 +1336,44 @@ export const repayAccountAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AutoCloseSet",
+    "inputs": [
+      {
+        "name": "enabled",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AutoClosed",
+    "inputs": [
+      {
+        "name": "executor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "debtRepaid",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "collateralReturned",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -1819,6 +1929,17 @@ export const repayAccountAbi = [
         "name": "account",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "AutoCloseNotReady",
+    "inputs": [
+      {
+        "name": "status",
+        "type": "uint8",
+        "internalType": "enum RePayAccount.CloseStatus"
       }
     ]
   },

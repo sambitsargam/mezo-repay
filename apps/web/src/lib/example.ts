@@ -56,6 +56,10 @@ export const exampleSnapshot: AccountSnapshot = {
   guardStatus: "Healthy",
   totalProtectRepaid: 0n,
   totalProtectTopUp: 0n,
+  autoClose: true,
+  closeRequired: m(1_806, 41),
+  closeStatus: "InsufficientPending",
+  version: 3,
   blockNumber: 0n,
 };
 

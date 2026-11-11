@@ -47,6 +47,8 @@ function subline(i: ActivityItem): string | null {
     return `${fmt(toR)} to repayment · ${fmt(toO)} to operating`;
   }
   if (i.kind === "repayment" && d.debtAfter) return `${d.automated === "true" ? "Automated" : "By owner"} · debt now ${fmt(BigInt(d.debtAfter))} MUSD`;
+  if (i.eventName === "AutoCloseSet") return d.enabled === "true" ? "Auto-close turned on" : "Auto-close turned off";
+  if (i.eventName === "AutoClosed") return "Closed automatically from pending repayment";
   if (i.kind === "policy" && d.policy) {
     try {
       const p = JSON.parse(d.policy) as { repaymentBps: string };

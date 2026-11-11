@@ -130,6 +130,31 @@ export const GUARD_STATUS_COPY: Record<GuardStatus, { title: string; detail: str
   },
 };
 
+/** Mirrors RePayAccount.CloseStatus. Ordered exactly like the Solidity enum. */
+export const CLOSE_STATUS = ["Ready", "Disabled", "Paused", "NoActiveLoan", "InsufficientPending"] as const;
+export type CloseStatus = (typeof CLOSE_STATUS)[number];
+
+export function closeStatus(code: number): CloseStatus {
+  const s = CLOSE_STATUS[code];
+  if (!s) throw new RangeError(`unknown close status ${code}`);
+  return s;
+}
+
+export const CLOSE_STATUS_COPY: Record<CloseStatus, { title: string; detail: string }> = {
+  Ready: { title: "Ready to close", detail: "Pending repayment covers the full payoff. The keeper (or anyone) can close the loan now; collateral returns to the account." },
+  Disabled: { title: "Auto-close off", detail: "Turn it on to let income retire the last 1,800 MUSD and close the loan automatically." },
+  Paused: { title: "Paused", detail: "Automation is paused in your policy. You can still close the loan yourself." },
+  NoActiveLoan: { title: "No active loan", detail: "There is no open Trove to close." },
+  InsufficientPending: { title: "Saving toward payoff", detail: "Pending repayment keeps growing from income. When it covers the payoff, the loan closes automatically." },
+};
+
+/** Share of the payoff already set aside, in basis points (capped at 10000). */
+export function payoffProgressBps(pending: bigint, required: bigint): number {
+  if (required === 0n) return 0;
+  if (pending >= required) return 10_000;
+  return Number((pending * 10_000n) / required);
+}
+
 /** Ratio as basis points of 100% (1e18 → 10000). */
 export function ratioToBps(ratio: bigint): number {
   return Number((ratio * 10_000n) / WAD);

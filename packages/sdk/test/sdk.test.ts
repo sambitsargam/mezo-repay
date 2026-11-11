@@ -208,3 +208,18 @@ describe("guard helpers", () => {
     expect(ratioToBps(1_625n * 10n ** 15n)).toBe(16_250);
   });
 });
+
+describe("auto-close helpers", () => {
+  it("maps close status codes in Solidity enum order", async () => {
+    const { closeStatus, CLOSE_STATUS } = await import("../src/accounting");
+    expect(CLOSE_STATUS).toEqual(["Ready", "Disabled", "Paused", "NoActiveLoan", "InsufficientPending"]);
+    expect(closeStatus(4)).toBe("InsufficientPending");
+    expect(() => closeStatus(5)).toThrow(RangeError);
+  });
+  it("reports payoff progress capped at 100%", async () => {
+    const { payoffProgressBps } = await import("../src/accounting");
+    expect(payoffProgressBps(900n, 1800n)).toBe(5_000);
+    expect(payoffProgressBps(2000n, 1800n)).toBe(10_000);
+    expect(payoffProgressBps(5n, 0n)).toBe(0);
+  });
+});

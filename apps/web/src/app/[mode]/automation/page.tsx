@@ -142,6 +142,9 @@ function Automation() {
                 Call <code className="font-mono text-xs">protect</code> when the ratio is below your guard trigger: repay from pending, then move your buffer BTC into the
                 same Trove
               </li>
+              <li>
+                Call <code className="font-mono text-xs">executeClose</code> only if you turned auto-close on and pending repayment covers the full payoff
+              </li>
             </ul>
           </div>
           <div>

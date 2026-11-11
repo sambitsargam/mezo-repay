@@ -10,7 +10,7 @@ import {RePayAccount} from "../src/RePayAccount.sol";
 contract PermissionsTest is BaseTest {
     function _ownerCalls() internal view returns (bytes[] memory c) {
         RePayAccount.Policy memory p = defaultPolicy();
-        c = new bytes[](18);
+        c = new bytes[](19);
         c[0] = abi.encodeCall(RePayAccount.setPolicy, (p));
         c[1] = abi.encodeCall(RePayAccount.setPaused, (true));
         c[2] = abi.encodeCall(RePayAccount.classifyUnclassified, (1, true, false, bytes32(0)));
@@ -28,7 +28,8 @@ contract PermissionsTest is BaseTest {
         c[14] = abi.encodeCall(RePayAccount.setGuard, (RePayAccount.Guard(0, 0)));
         c[15] = abi.encodeCall(RePayAccount.fundBuffer, ());
         c[16] = abi.encodeCall(RePayAccount.withdrawBuffer, (attacker, 1));
-        c[17] = abi.encodeCall(RePayAccount.initialize, (attacker, p));
+        c[17] = abi.encodeCall(RePayAccount.setAutoClose, (true));
+        c[18] = abi.encodeCall(RePayAccount.initialize, (attacker, p));
     }
 
     function test_everyOwnerFunctionRejectsNonOwners() public {
@@ -46,7 +47,7 @@ contract PermissionsTest is BaseTest {
                 assertFalse(ok, string.concat("non-owner call succeeded: #", vm.toString(j)));
                 bytes4 sel = bytes4(ret);
                 // initialize is guarded by the initializer (already initialized), the rest by onlyOwner
-                bytes4 want = j == 17 ? bytes4(keccak256("InvalidInitialization()")) : RePayAccount.NotOwner.selector;
+                bytes4 want = j == 18 ? bytes4(keccak256("InvalidInitialization()")) : RePayAccount.NotOwner.selector;
                 assertEq(sel, want, string.concat("wrong revert for call #", vm.toString(j)));
             }
         }

@@ -26,16 +26,22 @@ export const RECEIPT_TIMEOUT_MS = 120_000;
 
 export type Decision =
   | { action: "protect"; repay: bigint; topUp: bigint }
+  | { action: "close"; amount: bigint }
   | { action: "execute"; amount: bigint }
   | { action: "skip"; reason: string };
 
 /**
  * Pure decision from on-chain state. The contract re-checks everything; this only avoids wasted gas.
- * Loan safety comes first: if the collateral guard can act, protect before routine repayment.
+ * Loan safety comes first: if the collateral guard can act, protect. Then, if the owner opted in to
+ * auto-close and pending covers the payoff, close. Otherwise run a routine partial repayment.
  */
 export function decide(s: AccountSnapshot): Decision {
   if (s.guardStatus === "Protectable" && (s.guardRepay > 0n || s.guardTopUp > 0n)) {
     return { action: "protect", repay: s.guardRepay, topUp: s.guardTopUp };
+  }
+  // Owner opted in and pending repayment covers the whole payoff: retire the loan.
+  if (s.closeStatus === "Ready" && s.closeRequired > 0n) {
+    return { action: "close", amount: s.closeRequired };
   }
   if (s.previewStatus !== "Ready" || s.previewAmount === 0n) {
     return { action: "skip", reason: s.previewStatus };
@@ -128,6 +134,7 @@ export class Keeper {
         return;
       }
       if (decision.action === "protect") await this.send(account, snap, "protect", decision.repay, decision.topUp);
+      else if (decision.action === "close") await this.send(account, snap, "executeClose", decision.amount, 0n);
       else await this.send(account, snap, "executeRepayment", decision.amount, 0n);
     } finally {
       this.inFlight.delete(account);
@@ -137,24 +144,29 @@ export class Keeper {
   private async send(
     account: Address,
     snap: AccountSnapshot,
-    functionName: "executeRepayment" | "protect",
+    functionName: "executeRepayment" | "protect" | "executeClose",
     amount: bigint,
     topUp: bigint,
   ): Promise<void> {
     const status = this.state.statuses[account]!;
-    const kind = functionName === "protect" ? "protected" : "executed";
+    const kind = functionName === "protect" ? "protected" : functionName === "executeClose" ? "closed" : "executed";
     // Hints for the post-action position. Stale hints only cost gas.
-    const hints = await computeHints(this.pub, this.deployment.protocol, snap.collateral + topUp, snap.debt - amount).catch(
+    const hints =
+      functionName === "executeClose"
+        ? { upper: "0x0000000000000000000000000000000000000000" as Address, lower: "0x0000000000000000000000000000000000000000" as Address }
+        : await computeHints(this.pub, this.deployment.protocol, snap.collateral + topUp, snap.debt - amount).catch(
       () => ({ upper: "0x0000000000000000000000000000000000000000" as Address, lower: "0x0000000000000000000000000000000000000000" as Address }),
     );
     const caller = this.wallet?.account.address ?? snap.owner;
     let request;
     try {
+      // executeClose takes no hints; viem's per-function typing can't express the union, so narrow once here.
+      const args = (functionName === "executeClose" ? [] : [hints.upper, hints.lower]) as unknown as readonly [Address, Address];
       const sim = await this.pub.simulateContract({
         address: account,
         abi: repayAccountAbi,
-        functionName,
-        args: [hints.upper, hints.lower],
+        functionName: functionName as "protect" | "executeRepayment",
+        args,
         account: caller,
       });
       request = sim.request;
@@ -179,6 +191,14 @@ export class Keeper {
       if (receipt.status !== "success") {
         status.lastAction = { kind: "failed", at: new Date().toISOString(), txHash: hash, error: "reverted on-chain" };
         log("error", "execution reverted on-chain", { account, txHash: hash });
+        return;
+      }
+      if (functionName === "executeClose") {
+        const ce = parseEventLogs({ abi: repayAccountAbi, logs: receipt.logs, eventName: "AutoClosed" })[0];
+        const repaid = ce?.args.debtRepaid ?? amount;
+        this.state.lastExecution = { account, txHash: hash, amount: repaid.toString(), at: new Date().toISOString(), blockNumber: receipt.blockNumber.toString() };
+        status.lastAction = { kind, at: new Date().toISOString(), txHash: hash, amount: repaid.toString() };
+        log("info", "loan closed", { account, txHash: hash, debtRepaid: repaid, collateralReturned: ce?.args.collateralReturned });
         return;
       }
       if (functionName === "protect") {

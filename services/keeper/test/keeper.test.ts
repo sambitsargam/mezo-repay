@@ -37,6 +37,10 @@ const base: AccountSnapshot = {
   guardStatus: "Disabled",
   totalProtectRepaid: 0n,
   totalProtectTopUp: 0n,
+  autoClose: false,
+  closeRequired: 1800n,
+  closeStatus: "Disabled",
+  version: 3,
   blockNumber: 1n,
 };
 
@@ -57,6 +61,19 @@ describe("decide", () => {
       expect(decide({ ...base, guardStatus: g }).action).toBe("execute");
     }
     expect(decide({ ...base, guardStatus: "Protectable", guardRepay: 0n, guardTopUp: 0n }).action).toBe("execute");
+  });
+  it("closes the loan when the owner opted in and pending covers the payoff", () => {
+    const ready = { ...base, autoClose: true, closeStatus: "Ready" as const, closeRequired: 1800n };
+    expect(decide(ready)).toEqual({ action: "close", amount: 1800n });
+    // close takes priority over a routine partial repayment, even when that is blocked
+    expect(decide({ ...ready, previewStatus: "AtMinimumDebt", previewAmount: 0n }).action).toBe("close");
+    // guard protection still comes first
+    expect(decide({ ...ready, guardStatus: "Protectable", guardRepay: 5n, guardTopUp: 0n }).action).toBe("protect");
+  });
+  it("does not close unless the contract says Ready", () => {
+    for (const c of ["Disabled", "Paused", "NoActiveLoan", "InsufficientPending"] as const) {
+      expect(decide({ ...base, autoClose: true, closeStatus: c }).action).toBe("execute");
+    }
   });
   it("never executes a zero amount", () => {
     expect(decide({ ...base, previewAmount: 0n }).action).toBe("skip");

@@ -22,6 +22,7 @@ contract Handler is Test {
     uint256 public ghostDirect;
     uint256 public ghostKeeperGain;
     uint256 public ghostBufferFunded;
+    uint256 public ghostCloses;
     uint256 public ghostTopUp;
     uint256 public ghostBufferWithdrawn;
 
@@ -142,6 +143,22 @@ contract Handler is Test {
         ghostKeeperGain += token.balanceOf(stranger) - before + (stranger.balance - btcBefore);
     }
 
+    function toggleAutoClose(bool on) external {
+        vm.prank(owner);
+        account.setAutoClose(on);
+    }
+
+    function keeperClose() external {
+        (, RePayAccount.CloseStatus st) = account.closePreview();
+        if (st != RePayAccount.CloseStatus.Ready) return;
+        uint256 before = token.balanceOf(stranger);
+        uint256 btcBefore = stranger.balance;
+        vm.prank(stranger);
+        ghostRepaid += account.executeClose();
+        ghostCloses++;
+        ghostKeeperGain += token.balanceOf(stranger) - before + (stranger.balance - btcBefore);
+    }
+
     function attackerTriesOwnerActions(uint256 amount) external {
         vm.startPrank(stranger);
         try account.withdrawOperating(stranger, amount) {
@@ -158,6 +175,9 @@ contract Handler is Test {
         } catch {}
         try account.setGuard(RePayAccount.Guard(0, 0)) {
             revert("stranger changed guard");
+        } catch {}
+        try account.setAutoClose(true) {
+            revert("stranger enabled auto-close");
         } catch {}
         vm.stopPrank();
     }
@@ -200,8 +220,17 @@ contract InvariantTest is BaseTest {
 
     /// Net debt never drops below the protocol floor while the loan is active.
     function invariant_debtAboveFloor() public view {
-        (,uint256 debt,,) = account.loanState();
-        assertGe(debt, 2000e18);
+        (, uint256 debt,,) = account.loanState();
+        assertTrue(debt == 0 || debt >= 2000e18, "partial repayment never goes below the floor");
+    }
+
+    /// After a keeper close the loan is closed and nothing is owed (reopening is not modeled).
+    function invariant_closedLoanOwesNothing() public view {
+        if (handler.ghostCloses() > 0) {
+            (, uint256 debt,,) = account.loanState();
+            assertEq(debt, 0);
+            assertGe(address(account).balance, account.collateralBuffer() + COLL, "collateral came back to the account");
+        }
     }
 
     /// The guard buffer is always backed by BTC held by the account and matches its flows.

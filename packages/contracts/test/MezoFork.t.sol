@@ -171,4 +171,44 @@ contract MezoForkTest is Test {
         assertEq(account.pendingRepayment(), 0);
         assertEq(c, coll + topUp, "real Trove collateral increased");
     }
+
+    /// Auto-close against real Mezo contracts: with the owner's opt-in, a keeper closes the Trove
+    /// from pending repayment only, and the collateral returns to the account.
+    function test_fork_keeperAutoClose() public {
+        if (!enabled) {
+            vm.skip(true);
+            return;
+        }
+        uint256 borrowAmt = 2000e18;
+        uint256 coll = 0.06 ether;
+        uint256 expectedDebt = borrowAmt + bo.getBorrowingFee(borrowAmt) + tm.MUSD_GAS_COMPENSATION();
+        (address u, address l) = _hints(coll, expectedDebt);
+        RePayAccount.Policy memory p;
+        p.repaymentBps = 10_000; // every tracked payment goes to repayment
+        vm.startPrank(owner);
+        account.openLoan{value: coll}(borrowAmt, u, l);
+        account.setPolicy(p);
+        account.setAutoClose(true);
+        vm.stopPrank();
+
+        vm.startPrank(customer);
+        (u, l) = _hints(0.1 ether, 2600e18);
+        bo.openTrove{value: 0.1 ether}(2400e18, u, l);
+        musd.approve(address(account), 2100e18);
+        account.pay(2100e18, bytes32("INV-CLOSE"));
+        vm.stopPrank();
+
+        (uint256 required, RePayAccount.CloseStatus st) = account.closePreview();
+        assertEq(uint8(st), uint8(RePayAccount.CloseStatus.Ready));
+        uint256 op = account.operatingCash();
+        address keeperBot = makeAddr("forkKeeper");
+        vm.prank(keeperBot);
+        uint256 repaid = account.executeClose();
+        assertEq(repaid, required);
+        assertEq(uint8(tm.getTroveStatus(address(account))), 2, "closedByOwner (the account)");
+        assertEq(address(account).balance, coll, "collateral back in the account");
+        assertEq(account.operatingCash(), op, "operating cash untouched");
+        assertEq(keeperBot.balance, 0);
+        console2.log("auto-close repaid", repaid);
+    }
 }

@@ -53,6 +53,8 @@ const KIND: Record<string, ActivityKind> = {
   BufferFunded: "guard",
   BufferWithdrawn: "guard",
   CollateralProtected: "guard",
+  AutoCloseSet: "policy",
+  AutoClosed: "loanClosed",
 };
 
 function str(v: unknown): string {
@@ -111,6 +113,11 @@ export async function readActivity(
         timestamp: null,
       });
     }
+  }
+  // A keeper close emits LoanClosed and AutoClosed in one tx; keep only the more specific AutoClosed.
+  const autoClosedTx = new Set(items.filter((i) => i.eventName === "AutoClosed").map((i) => i.txHash));
+  for (let k = items.length - 1; k >= 0; k--) {
+    if (items[k]!.eventName === "LoanClosed" && autoClosedTx.has(items[k]!.txHash)) items.splice(k, 1);
   }
   if (opts.withTimestamps) {
     const blocks = [...new Set(items.map((i) => i.blockNumber))];

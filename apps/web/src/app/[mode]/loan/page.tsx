@@ -10,6 +10,7 @@ import { TxDialog } from "@/components/TxDialog";
 import { CloseLoanButton, ExecuteRepaymentButton } from "@/components/actions";
 import { RatioGauge } from "@/components/motion";
 import { GuardCard } from "@/components/GuardCard";
+import { AutoCloseCard } from "@/components/AutoCloseCard";
 import { Amount, Card, CardHeader, DataError, KeyValue, Notice, PageHeader, Pill, Skeleton, Stat, cx } from "@/components/ui";
 
 export default function LoanPage() {
@@ -114,6 +115,7 @@ function Loan() {
             </Card>
           </div>
           <GuardCard snap={s} />
+          <AutoCloseCard snap={s} />
         </>
       )}
 

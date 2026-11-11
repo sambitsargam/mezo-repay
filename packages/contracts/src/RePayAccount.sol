@@ -21,7 +21,7 @@ import {IBorrowerOperations, ITroveManager, ICollSurplusPool, IPriceFeed} from "
 ///
 /// Authority:
 ///   - Owner (fixed at creation): every policy, loan, and withdrawal action.
-///   - Anyone (keeper): `executeRepayment` and `protect`. They can only burn this account's own
+///   - Anyone (keeper): `executeRepayment`, `protect` and, if the owner opted in, `executeClose`. They can only burn this account's own
 ///     pending allocation against this account's own Trove (and, for `protect`, move the owner's
 ///     BTC collateral buffer into the same Trove), within the owner's settings, and pay no fee.
 ///
@@ -29,12 +29,16 @@ import {IBorrowerOperations, ITroveManager, ICollSurplusPool, IPriceFeed} from "
 ///   When the Trove's collateral ratio falls below the owner's trigger, `protect` first steers pending
 ///   MUSD into repayment (ignoring cadence limits, never operating cash), then tops up collateral from
 ///   the owner-funded BTC buffer, aiming for the owner's target ratio.
+///
+/// Auto-close (v3):
+///   If the owner opts in and pending repayment alone covers the full payoff, anyone can call
+///   `executeClose`, which closes the Trove from pending only. Collateral returns to this account.
 contract RePayAccount is Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint16 public constant BPS = 10_000;
     uint32 public constant MAX_COOLDOWN = 30 days;
-    string public constant VERSION = "2";
+    string public constant VERSION = "3";
     /// @dev Mezo's minimum collateral ratio (110%). A guard trigger must sit above it.
     uint256 public constant MEZO_MCR = 1.1e18;
     uint256 public constant MAX_GUARD_RATIO = 10e18;
@@ -64,6 +68,14 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     struct Guard {
         uint64 triggerRatio; // protect when collateral ratio is below this
         uint64 targetRatio; // aim for this ratio after protecting
+    }
+
+    enum CloseStatus {
+        Ready,
+        Disabled,
+        Paused,
+        NoActiveLoan,
+        InsufficientPending
     }
 
     enum GuardStatus {
@@ -105,6 +117,8 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     uint256 public totalProtectRepaid; // portion of totalRepaid done by the guard
     uint256 public totalProtectTopUp; // BTC moved from the buffer into the Trove by the guard
 
+    bool public autoClose; // owner opt-in: keepers may close the Trove once pending covers the payoff
+
     // --- Events ---
     event Initialized(address indexed owner, Policy policy);
     event PaymentReceived(
@@ -139,6 +153,8 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     event GuardUpdated(Guard guard);
     event BufferFunded(uint256 amount, uint256 buffer);
     event BufferWithdrawn(address indexed to, uint256 amount, uint256 buffer);
+    event AutoCloseSet(bool enabled);
+    event AutoClosed(address indexed executor, uint256 debtRepaid, uint256 collateralReturned);
     event CollateralProtected(
         address indexed executor, uint256 ratioBefore, uint256 ratioAfter, uint256 repaid, uint256 collateralAdded
     );
@@ -163,6 +179,7 @@ contract RePayAccount is Initializable, ReentrancyGuard {
     error GuardNotActionable(GuardStatus status);
     error InsufficientBuffer(uint256 available, uint256 requested);
     error InsufficientFreeBtc(uint256 available, uint256 requested);
+    error AutoCloseNotReady(CloseStatus status);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
@@ -473,6 +490,10 @@ contract RePayAccount is Initializable, ReentrancyGuard {
 
         uint256 fromPending = required < pendingRepayment ? required : pendingRepayment;
         uint256 fromOperating = required - fromPending;
+        _close(required, fromPending, fromOperating);
+    }
+
+    function _close(uint256 required, uint256 fromPending, uint256 fromOperating) internal returns (uint256 returned) {
         pendingRepayment -= fromPending;
         operatingCash -= fromOperating;
 
@@ -482,7 +503,42 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         uint256 burned = balBefore - musd.balanceOf(address(this));
         if (burned != required) revert UnexpectedBurn(required, burned);
         totalRepaid += required;
-        emit LoanClosed(required, fromPending, fromOperating, address(this).balance - btcBefore);
+        returned = address(this).balance - btcBefore;
+        emit LoanClosed(required, fromPending, fromOperating, returned);
+    }
+
+    // =====================================================================================
+    // Auto-close
+    // =====================================================================================
+
+    /// @notice Opt in or out of keeper-executed closing. Closing only ever uses pending repayment.
+    function setAutoClose(bool enabled) external onlyOwner {
+        autoClose = enabled;
+        emit AutoCloseSet(enabled);
+    }
+
+    /// @notice MUSD needed to close now (debt incl. interest minus Mezo's gas compensation) and
+    ///         whether `executeClose` would run.
+    function closePreview() public view returns (uint256 required, CloseStatus status) {
+        (ITroveManager.Status loan, uint256 totalDebt,,) = loanState();
+        if (loan == ITroveManager.Status.active) required = totalDebt - troveManager.MUSD_GAS_COMPENSATION();
+        if (!autoClose) return (required, CloseStatus.Disabled);
+        if (_policy.paused) return (required, CloseStatus.Paused);
+        if (loan != ITroveManager.Status.active) return (0, CloseStatus.NoActiveLoan);
+        if (pendingRepayment < required) return (required, CloseStatus.InsufficientPending);
+        return (required, CloseStatus.Ready);
+    }
+
+    /// @notice Permissionless once the owner opted in: close the Trove using pending repayment only.
+    ///         Operating cash is never used. Collateral returns to this account (withdraw with
+    ///         `withdrawBtc`). Mezo blocks closing in recovery mode; this then reverts.
+    function executeClose() external nonReentrant returns (uint256 debtRepaid) {
+        CloseStatus status;
+        (debtRepaid, status) = closePreview();
+        if (status != CloseStatus.Ready) revert AutoCloseNotReady(status);
+        uint256 returned = _close(debtRepaid, debtRepaid, 0);
+        lastExecutionAt = uint64(block.timestamp);
+        emit AutoClosed(msg.sender, debtRepaid, returned);
     }
 
     /// @notice After liquidation or redemption, claim surplus collateral into this account.
@@ -674,6 +730,9 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         uint8 guardStatus;
         uint256 totalProtectRepaid;
         uint256 totalProtectTopUp;
+        bool autoClose;
+        uint256 closeRequired;
+        uint8 closeStatus;
     }
 
     function snapshot() external view returns (Snapshot memory s) {
@@ -709,5 +768,9 @@ contract RePayAccount is Initializable, ReentrancyGuard {
         s.guardStatus = uint8(gs);
         s.totalProtectRepaid = totalProtectRepaid;
         s.totalProtectTopUp = totalProtectTopUp;
+        s.autoClose = autoClose;
+        CloseStatus cs;
+        (s.closeRequired, cs) = closePreview();
+        s.closeStatus = uint8(cs);
     }
 }
