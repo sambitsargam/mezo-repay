@@ -17,3 +17,4 @@ services/keeper/state/
 prompt.md
 .vercel
 *.tsbuildinfo
+CHECKLIST.md
