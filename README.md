@@ -10,6 +10,8 @@ MUSD loan (Trove)**, receives customer payments through payment links, splits ea
 set-aside share to the loan. The repayment is bounded by your policy and Mezo's minimum-debt rule.
 If BTC falls and the loan's collateral ratio drops below your trigger, the **collateral guard**
 applies pending MUSD to the debt and adds BTC from a buffer you reserved, aiming for your target ratio.
+With **auto-close** on, income keeps saving past Mezo's minimum debt, and when pending covers the
+payoff the keeper closes the loan and your BTC comes back. Income can take the loan to zero.
 
 > Mezo **testnet** only. Self-reviewed and tested, **not audited**. No real funds.
 
@@ -24,14 +26,15 @@ applies pending MUSD to the debt and adds BTC from a buffer you reserved, aiming
 | | |
 | --- | --- |
 | Network | Mezo testnet, chain 31611 |
-| Contracts | v2 deployed: factory [`0xceb2223F…E56b`](https://explorer.test.mezo.org/address/0xceb2223F6F81991E671781A77f8f3469d6FDe56b), Sourcify exact match ([v1](docs/DEPLOYMENTS.md) superseded) |
+| Contracts | v3 deployed: factory [`0x2AF4eB61…7eeb`](https://explorer.test.mezo.org/address/0x2AF4eB61EFdF3942B71B3f288FB58Cf719087eeb), Sourcify exact match ([v2, v1](docs/DEPLOYMENTS.md) superseded) |
 | Live end-to-end run | Done: account → Trove → customer payments → keeper repayments → debt 2,202 → 2,000 MUSD ([evidence](docs/EVIDENCE.md)) |
 | Web app | **https://mezo-repay.vercel.app** (Vercel; opened and checked 2026-10-25) · also runs locally with `pnpm dev` |
 | Collateral guard | Live: `protect` took the demo Trove from 158.2% to 177.4% ([evidence](docs/EVIDENCE.md)) |
-| Loan paths run live | open, repay, addColl, withdrawColl, close (claim surplus: unit-tested only) |
+| Auto-close | Live: the keeper's `executeClose` burned 1,801.80 MUSD from pending (0 from operating cash) and returned 0.045 BTC ([evidence](docs/EVIDENCE.md)) |
+| Loan paths run live | open, repay, addColl, withdrawColl, owner close, keeper auto-close, reopen (claim surplus: unit-tested only) |
 | Keeper | Hosted on a GitHub Actions schedule (every 10 min); public status at [/api/keeper/status](https://mezo-repay.vercel.app/api/keeper/status) |
 
-Live app: **https://mezo-repay.vercel.app** · read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
+Live app: **https://mezo-repay.vercel.app** · read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x3B89a07a950c71c3f6978EDf17270384E2184aAe
 
 Two-minute tour: **[docs/JUDGE_QUICKSTART.md](docs/JUDGE_QUICKSTART.md)**.
 
@@ -48,7 +51,7 @@ pnpm dev                 # http://localhost:3000
 
 - `/`: product overview
 - `/example`: full account with **labeled sample data** (no wallet)
-- `/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7`: **read-only live view** of the real demo account
+- `/app?view=0x3B89a07a950c71c3f6978EDf17270384E2184aAe`: **read-only live view** of the real demo account
 - `/app`: your own live account (browser wallet on Mezo testnet, faucet https://faucet.test.mezo.org)
 - `/pay/<account>?amount=…&ref=…&chain=31611`: public payer page
 
@@ -62,12 +65,12 @@ NEXT_PUBLIC_KEEPER_STATUS_URL=        # keeper status base URL; default /api/kee
 ## Tests
 
 ```bash
-pnpm contracts:test                  # 79 Foundry tests: unit, fuzz, guard, permission matrix, 7 invariants
-pnpm contracts:fork                  # full flow + guard on a fork of real Mezo testnet contracts (~5 min)
-pnpm --filter @repay/sdk test        # 20 accounting/format/link/guard tests
-pnpm --filter @repay/keeper test     # 8 keeper decision/config tests
+pnpm contracts:test                  # 89 Foundry tests: unit, fuzz, guard, auto-close, permission matrix, 8 invariants
+pnpm contracts:fork                  # full flow + guard + auto-close on a fork of real Mezo testnet contracts (~5 min)
+pnpm --filter @repay/sdk test        # 22 accounting/format/link/guard/close tests
+pnpm --filter @repay/keeper test     # 10 keeper decision/config tests
 pnpm --filter @repay/web test        # 10 web unit tests
-pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 50 Playwright tests (desktop + mobile, uses installed Chrome)
+pnpm --filter @repay/web build && pnpm --filter @repay/web e2e   # 52 Playwright tests (desktop + mobile, uses installed Chrome)
 pnpm typecheck && pnpm lint
 ```
 
@@ -102,6 +105,8 @@ Details: [ARCHITECTURE](docs/ARCHITECTURE.md) · [ACCOUNTING](docs/ACCOUNTING.md
 - Liquidation, redemption, surplus claim and recovery mode are handled and tested.
 - **Collateral guard** reads Mezo's `PriceFeed.fetchPrice()` in-block, repays from pending MUSD and
   calls `addColl` with buffer BTC when the ratio is below the owner's trigger.
+- **Auto-close** computes the payoff as `debt − MUSD_GAS_COMPENSATION` in the executing block and
+  calls `closeTrove` only when pending repayment covers it and the owner opted in.
 
 ## How the money is counted
 
@@ -126,8 +131,8 @@ On Vercel: set the project root to `apps/web`, install command `pnpm install`, b
 ## Limitations
 
 Testnet only and not audited. Only loans opened by a RePay account are managed; existing wallet-owned
-Troves cannot be imported. Partial repayment stops at Mezo's minimum debt, and the final close is an
-owner action. Keeper execution is best-effort. The collateral guard reduces liquidation risk but cannot
+Troves cannot be imported. Partial repayment stops at Mezo's minimum debt; the final close is automatic
+only when the owner turns auto-close on (and Mezo blocks closing in recovery mode). Keeper execution is best-effort. The collateral guard reduces liquidation risk but cannot
 prevent it in a fast drop, and collateral is never sold to repay. Payment references are labels, not proof of invoices.
 
 ## Hackathon materials

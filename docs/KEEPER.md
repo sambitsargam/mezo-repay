@@ -1,8 +1,9 @@
 # Keeper
 
 `services/keeper`: a small TypeScript service that calls `protect` on RePay accounts whose collateral
-guard can act, and otherwise `executeRepayment` when the contract's own preview says a repayment is
-ready. Loan safety comes first.
+guard can act; otherwise `executeClose` when the owner turned auto-close on and pending repayment covers
+the payoff; otherwise `executeRepayment` when the contract's own preview says a repayment is ready.
+Loan safety comes first.
 
 ## Authority and cost
 
@@ -20,10 +21,10 @@ ready. Loan safety comes first.
 2. Discovers accounts from factory `AccountCreated` events in 10,000-block ranges, from the
    registry's deployment block, saving a checkpoint after each range (`state/state.json`, atomic write).
 3. For each account, reads `snapshot()` (with bounded retry/backoff). If `guardStatus == Protectable`
-   it calls `protect`. Otherwise, if `previewStatus != Ready`, it logs the plain-language reason and
-   moves on.
+   it calls `protect`. Otherwise, if `closeStatus == Ready` it calls `executeClose`. Otherwise, if
+   `previewStatus != Ready`, it logs the plain-language reason and moves on.
 4. Computes sorted-list hints for the post-repayment position (falls back to zero hints).
-5. **Simulates** the call (`protect` or `executeRepayment`). If simulation reverts (another keeper won, cooldown, interest
+5. **Simulates** the call (`protect`, `executeClose` or `executeRepayment`). If simulation reverts (another keeper won, cooldown, interest
    changed), nothing is sent.
 6. In live mode, sends, then waits up to 120 s for the receipt. A missing receipt is logged and
    **never resubmitted**; the next scan re-reads chain state, which is authoritative.
@@ -48,7 +49,7 @@ The keeper also reads the repository root `.env` if present. Never commit either
 pnpm --filter @repay/keeper dry-run -- --once
 
 # Single account, one pass
-pnpm --filter @repay/keeper once -- --account 0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
+pnpm --filter @repay/keeper once -- --account 0x3B89a07a950c71c3f6978EDf17270384E2184aAe
 
 # Live, continuous, with status endpoint on :8787
 KEEPER_MODE=live pnpm --filter @repay/keeper start
@@ -105,8 +106,10 @@ deployment block). Put the status port behind HTTPS if exposing it to the browse
 - v1: two live `--once` runs executed real repayments (`keeper-execute`, `keeper-execute-capped`).
 - v2: the keeper wallet executed a repayment and a guard `protect` live (`keeper-execute`,
   `keeper-protect` in `docs/EVIDENCE.md`).
-- Hosted schedule: the workflow is committed; it runs as soon as the `KEEPER_PRIVATE_KEY` secret
-  exists. The Automation page shows the latest run and its result.
+- v3: the keeper wallet auto-closed a Trove live (`keeper-auto-close`): 1,801.80 MUSD from pending,
+  0 from operating cash.
+- Hosted schedule: running every 10 minutes since the `KEEPER_PRIVATE_KEY` secret was added. The
+  Automation page shows the latest run and its result.
 
 ## Limitations
 

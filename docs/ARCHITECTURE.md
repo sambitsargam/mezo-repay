@@ -16,7 +16,8 @@ docs/               This documentation
                                      ▼
  customer ── pay / payWithPermit ──► RePayAccount (EIP-1167 clone) ──► Mezo BorrowerOperations
  keeper ──── executeRepayment ─────►   ├ pendingRepayment               (openTrove, repayMUSD,
-        └─── protect (guard) ──────►   ├ operatingCash                    closeTrove, addColl, …)
+        ├─── protect (guard) ──────►   ├ operatingCash                    closeTrove, addColl, …)
+        └─── executeClose (opt-in) ►   │
                                        ├ collateralBuffer (BTC)
                                        └ owns its own Trove  ◄────────── Mezo TroveManager, PriceFeed (reads)
  RePayAccountFactory ── clone + initialize (same tx), AccountCreated event, isAccount registry
@@ -36,7 +37,7 @@ docs/               This documentation
 collateral ratio, then how much pending MUSD to repay toward the target (capped by pending and Mezo's
 minimum debt) and how much buffer BTC to add for the remaining gap. `protect()` executes exactly that:
 `repayMUSD` then `addColl`, both for the account's own Trove. The price feed is wrapped in try/catch so
-views keep working when the oracle is stale. The keeper checks the guard before routine repayment.
+views keep working when the oracle is stale. The keeper checks the guard first, then auto-close, then routine repayment.
 
 The hosted keeper runs on a GitHub Actions schedule. The web app's `/api/keeper/status` route
 rebuilds its status from chain logs (actions sent by the keeper address) and the public Actions API.

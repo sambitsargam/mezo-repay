@@ -4,22 +4,30 @@
 (Trove), receives customer MUSD through payment links, splits each payment once (for example 30% to
 repayment, 70% to operating cash), and lets anyone, such as the hosted keeper, apply the set-aside
 share to the loan. When BTC falls below your trigger, its collateral guard repays from pending MUSD
-and adds buffer BTC to the same Trove.
+and adds buffer BTC to the same Trove. With auto-close on, income keeps saving past Mezo's minimum
+debt and the keeper closes the loan when pending covers the payoff.
 
 ## 1. See the real thing without a wallet (30 s)
 
 Open the read-only live view of the demo account (live chain data, nothing mocked):
 
-https://mezo-repay.vercel.app/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
+https://mezo-repay.vercel.app/app?view=0x3B89a07a950c71c3f6978EDf17270384E2184aAe
 
-You will see a real Trove: debt reduced from 2,202 to exactly 2,000 MUSD (Mezo's floor), 700 MUSD of
-tracked income from a separate customer wallet, and on **Loan** the collateral guard (trigger 170%,
-target 180%) showing what it already protected. **Activity** lists every event with explorer links.
+You will see a real Trove with auto-close on and its progress toward the payoff, 1,100 MUSD of tracked
+income from a separate customer wallet, and on **Loan** the collateral guard (trigger 150%, target
+170%) and the **Auto-close** card. **Activity** shows the earlier loan on this account being closed by
+the keeper ("Closed automatically from pending repayment"), with explorer links for every event.
 **Automation** shows the hosted keeper's schedule and its latest run.
 
 ## 2. Check the evidence (30 s)
 
-`docs/EVIDENCE.md`: every transaction with an explorer link. The key ones in run 2 (v2):
+`docs/EVIDENCE.md`: every transaction with an explorer link. Run 3 (v3, current):
+
+- `owner-set-auto-close`: the owner opted in.
+- `keeper-auto-close`: the keeper wallet called `executeClose`; Mezo's `closeTrove` burned 1,801.80
+  MUSD, all from pending repayment, and 0.045 BTC came back to the account.
+
+Run 2 (v2):
 
 - `open-loan`: the account contract opened the Trove itself.
 - `customer-pay`, `customer-pay-permit`: a separate wallet paid, split 30/70 on arrival.
@@ -32,7 +40,7 @@ target 180%) showing what it already protected. **Activity** lists every event w
 ## 3. Explore the product (60 s)
 
 - https://mezo-repay.vercel.app/example: a fully populated account with **clearly labeled sample data**.
-- https://mezo-repay.vercel.app/pay/0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7?amount=25&ref=JUDGE&chain=31611 :
+- https://mezo-repay.vercel.app/pay/0x3B89a07a950c71c3f6978EDf17270384E2184aAe?amount=25&ref=JUDGE&chain=31611 :
   the public payer page. It verifies on-chain that the recipient is a genuine RePay account. With
   testnet MUSD you can pay the demo account yourself.
 - With a wallet on Mezo testnet (chain 31611, RPC `https://rpc.test.mezo.org`, faucet

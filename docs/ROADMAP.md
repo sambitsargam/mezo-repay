@@ -7,6 +7,9 @@
 - **Hosted keeper**: GitHub Actions every 10 minutes, with public status at `/api/keeper/status`
   built from chain data.
 - **Live close, addColl and withdrawColl** on Mezo testnet (see `EVIDENCE.md`).
+- **Owner-approved auto-close** (v3 contracts): with the owner's opt-in, a keeper calls `executeClose`
+  once pending repayment covers the payoff, so income can retire the final minimum-debt tranche.
+  Run live: 1,801.80 MUSD burned from pending, 0 from operating cash.
 
 ## Next
 
@@ -18,8 +21,8 @@ Ordered by what most increases real usefulness.
    capped at 5 MUSD, 0.5% of guard actions capped at 10 MUSD, taken from the pending allocation only.
 3. **A second keeper operator** on separate infrastructure, so a delayed GitHub schedule is not a
    single point of failure for the guard.
-4. **Owner-approved auto-close.** A policy flag that lets keepers close the loan when the account
-   holds enough MUSD, so income can retire the final minimum-debt tranche without a manual step.
+4. **Auto-reopen (revolving credit).** After an auto-close, optionally reopen a smaller loan from
+   the returned BTC on the owner's pre-approved terms.
 5. **Invoices and receivables**: invoice records with on-chain references, partial payments and
    accounting exports beyond CSV.
 6. **Mezo Passport and smart-account wallets**, and multi-owner (Safe) accounts for agencies.

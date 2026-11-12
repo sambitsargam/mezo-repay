@@ -102,6 +102,7 @@ repayment proceeds.
 | `releasePending(amount)` | pending → operating; emits `PendingReleased`; `totalReleased += amount` |
 | `withdrawOperating(to, amount)` | operating → `to`; `totalWithdrawn += amount`; cannot touch pending |
 | `closeLoan()` | required = `totalDebt − gasCompensation`; uses pending first, then operating; reverts if insufficient |
+| `executeClose()` (anyone, v3) | only if `autoClose` is on, the policy is not paused, the loan is active and `pendingRepayment ≥ required`; burns `required` from pending only (operating untouched); emits `LoanClosed` and `AutoClosed` |
 | `withdrawBtc`, `claimCollateralSurplus`, `withdrawCollateral` | BTC only; MUSD buckets unchanged. `withdrawBtc` is limited to BTC outside the guard buffer |
 | `fundBuffer` / `withdrawBuffer` | BTC only: `collateralBuffer` up / down. Invariant: `collateralBuffer ≤ address(this).balance` |
 
@@ -127,8 +128,10 @@ safety action. If both amounts are zero the status is `NoResources` and `protect
   The 200 MUSD gas compensation is not repayable this way.
 - **Full close** (`closeTrove`): burns `totalDebt − gasCompensation` from the account. The gas
   compensation is burned from Mezo's GasPool. All collateral returns to the account.
-- Full closure is owner-only in this version. When headroom is zero the UI shows
-  "Waiting for enough MUSD to close the loan" and keeps funds pending.
+- Full closure is the owner's choice: either `closeLoan()` directly, or opting in with
+  `setAutoClose(true)` so a keeper can call `executeClose()` once pending covers the payoff. Without
+  the opt-in, when headroom is zero the UI shows "Waiting for enough MUSD to close the loan" and keeps
+  funds pending. With it, the Loan page shows progress toward the payoff.
 
 ## Terminal protocol events
 

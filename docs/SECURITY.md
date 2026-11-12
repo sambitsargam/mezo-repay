@@ -7,8 +7,8 @@
 
 | Actor | Can | Cannot |
 | --- | --- | --- |
-| **Owner** (fixed at creation) | change policy and guard, fund/withdraw the guard buffer, pause/resume, open/close loan, borrow, add/withdraw collateral, repay, withdraw operating cash, release pending, classify transfers, claim surplus, withdraw BTC | change the owner (no transfer function exists) |
-| **Anyone / keeper** | `executeRepayment(upperHint, lowerHint)`, `protect(upperHint, lowerHint)` and `pay`/`payWithPermit` | everything else (all reverts with `NotOwner`) |
+| **Owner** (fixed at creation) | change policy, guard and auto-close, fund/withdraw the guard buffer, pause/resume, open/close loan, borrow, add/withdraw collateral, repay, withdraw operating cash, release pending, classify transfers, claim surplus, withdraw BTC | change the owner (no transfer function exists) |
+| **Anyone / keeper** | `executeRepayment(upperHint, lowerHint)`, `protect(upperHint, lowerHint)`, `executeClose()` (only with the owner's auto-close opt-in) and `pay`/`payWithPermit` | everything else (all reverts with `NotOwner`) |
 | **Factory** | create clones and call `initialize` once in the same transaction | anything after creation: no admin, no upgrade, no funds |
 | **Mezo protocol** | liquidate or redeem the Trove under its rules | move the account's MUSD |
 

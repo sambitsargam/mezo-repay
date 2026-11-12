@@ -12,7 +12,7 @@
 **Links**
 
 - Live app: https://mezo-repay.vercel.app
-- Read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7
+- Read-only live view of the demo account: https://mezo-repay.vercel.app/app?view=0x3B89a07a950c71c3f6978EDf17270384E2184aAe
 - Pitch deck: https://mezo-repay.vercel.app/deck (PDF: `docs/deck/mezo-repay-deck.pdf`)
 - Code: https://github.com/sambitsargam/mezo-repay
 - Evidence (every transaction, with explorer links): `docs/EVIDENCE.md`
@@ -28,16 +28,28 @@ EIP-2612 permit). Each payment is split once: a chosen share (for example 30%) g
 repayment, the rest to operating cash. A permissionless keeper applies the pending share to the
 Trove within the owner's policy and Mezo's 1,800 MUSD minimum net debt.
 
-New in this wave: a **collateral guard**. When the Trove's collateral ratio falls below the owner's
-trigger, anyone (normally the keeper) can call `protect`. It first steers pending MUSD into
-repayment, ignoring cooldowns but never touching operating cash. It then tops up collateral from a
-BTC buffer the owner reserved in the account, aiming for the owner's target ratio.
+New in this wave:
 
-This runs on Mezo testnet today. v2 contracts are deployed and Sourcify-verified. A live run with a
-separate customer wallet and a separate keeper wallet repaid debt from 2,202 to 2,000 MUSD, and the
-guard lifted the ratio from 158.2% to 177.4%. The owner exercised addColl and withdrawColl, and a
-v1 Trove was closed live. The web app is hosted, and a scheduled keeper with a public status page
-runs on GitHub Actions.
+- **Collateral guard.** When the Trove's collateral ratio falls below the owner's trigger, anyone
+  (normally the keeper) can call `protect`. It first steers pending MUSD into repayment, ignoring
+  cooldowns but never touching operating cash. It then tops up collateral from a BTC buffer the
+  owner reserved in the account, aiming for the owner's target ratio.
+- **Auto-close.** Mezo's minimum net debt means partial repayment always stops at about 2,000 MUSD,
+  so the last 1,800 MUSD used to need a manual close. With the owner's opt-in, income keeps saving
+  toward the payoff, and once pending covers it the keeper calls `executeClose`. Mezo's `closeTrove`
+  runs from pending MUSD only, and the BTC comes back to the account. Income can now take a loan all
+  the way to zero.
+
+This runs on Mezo testnet today. v3 contracts are deployed and Sourcify-verified. Live runs used a
+separate customer wallet and a separate keeper wallet with no authority over the account:
+
+- The keeper repaid debt from 2,202 to 2,000 MUSD.
+- The guard lifted the ratio from 158.2% to 177.4%.
+- The keeper auto-closed a Trove, burning 1,801.80 MUSD from pending repayment with 0 from operating
+  cash.
+- The owner exercised addColl, withdrawColl and close.
+
+The web app is hosted, and a scheduled keeper with a public status page runs on GitHub Actions.
 
 ## Problem
 
@@ -61,7 +73,8 @@ with recurring MUSD revenue and an MUSD loan on Mezo.
 4. Customers pay through a payment link (`pay` with exact approval, or `payWithPermit` in one
    transaction). Each payment splits once: floor(P × share) to pending repayment, the rest to
    operating cash. Direct transfers stay *unclassified* until the owner classifies them.
-5. The keeper (or anyone) calls `protect` when the guard can act, otherwise `executeRepayment`. The
+5. The keeper (or anyone) calls `protect` when the guard can act; otherwise `executeClose` when the
+   owner turned auto-close on and pending covers the payoff; otherwise `executeRepayment`. The
    contract computes every amount in the executing block and calls Mezo for its own Trove.
 6. The dashboard shows real debt, collateral ratio, guard state, income and repayments, with explorer
    links for every transaction.
@@ -74,6 +87,7 @@ Planned, not in the deployed testnet contracts (fees there are zero).
 | --- | --- | --- | --- |
 | Repayment fee | The account owner (the business) | 0.25% of each automated repayment, capped at 5 MUSD per execution | Debt goes down without anyone remembering to do it. Charged only when debt actually falls. |
 | Guard fee | The account owner | 0.5% of the value moved by `protect` (MUSD repaid + BTC added at oracle price), capped at 10 MUSD | Someone watches the ratio 24/7 and acts below the trigger. The alternative is liquidation, which costs the collateral above the debt. |
+| Auto-close fee | The account owner | Flat 5 MUSD per automatic close | The loan is retired the moment income covers it, and the BTC is freed without a manual step. Charged once per loan. |
 | Payers | Nobody else | 0 | Customers pay invoices normally; adding a fee would hurt adoption. |
 
 Worked example: a studio earning 10,000 MUSD a month with a 30% repayment share routes 3,000 MUSD to
@@ -97,8 +111,15 @@ hypothesis: we have no paying users yet.
 
 ## Deployment status
 
-- **v2 contracts on Mezo testnet**: factory `0xceb2223F6F81991E671781A77f8f3469d6FDe56b`,
-  implementation `0xEE5b9ABFd95deb642bc03089b43dA0C5e47D1A56`, Sourcify exact match.
+- **v3 contracts on Mezo testnet**: factory `0x2AF4eB61EFdF3942B71B3f288FB58Cf719087eeb`,
+  implementation `0xC5FFc26652d6060CC027d770238FBfFF2d6404Fb`, Sourcify exact match. v2 and v1 are
+  also verified and recorded.
+- **Live run, v3 (auto-close)**: account `0x3B89a07a950c71c3f6978EDf17270384E2184aAe` opened a
+  minimum-size Trove (debt 2,001.80 MUSD) and the owner turned auto-close on. A separate customer paid
+  1,000 + 100 MUSD (30% to pending). The owner added 1,480 MUSD of labeled capital to pending to reach
+  the payoff in one sitting. The keeper wallet called `executeClose`, which burned 1,801.80 MUSD from
+  pending (0 from operating cash) and returned 0.045 BTC. The owner then reopened the loan on the same
+  account with auto-close still on.
 - **Live run, v2**: account `0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7` opened a Trove (0.045 BTC,
   debt 2,202 MUSD). A separate customer paid 500 + 100 (permit) + 100 MUSD. The keeper repaid 100
   (policy cap), then `protect` repaid 102 down to Mezo's 2,000 floor and added 0.003 BTC from the
@@ -116,7 +137,8 @@ hypothesis: we have no paying users yet.
 ## Demo video
 
 `docs/video/mezo-repay-demo.mp4` (1:36): the live on-chain flow (account, Trove, customer payment,
-keeper repayment, collateral guard) in the hosted app and Mezo explorer. Narration is synthesized
+keeper repayment, collateral guard) in the hosted app and Mezo explorer. It was recorded on the v2
+demo account, before auto-close; the auto-close run is in `docs/EVIDENCE.md`. Narration is synthesized
 speech. Upload it to YouTube or Loom if the form needs a link.
 
 ## Technologies
@@ -129,20 +151,23 @@ Sourcify, GitHub Actions.
 
 - **Existing (used, not modified):** Mezo MUSD protocol contracts on testnet; OpenZeppelin Contracts;
   forge-std; open-source libraries listed in package files.
-- **Newly built for this hackathon:** RePayAccount and factory contracts (v1, v2 with the guard) and
+- **Newly built for this hackathon:** RePayAccount and factory contracts (v1; v2 with the guard; v3
+  with auto-close) and
   all tests; the SDK; the keeper, its hosted schedule and status route; the demo runner; the web app;
   all documentation.
 
 ## Three concrete future milestones
 
 1. Fees as specified above, with immutable caps, plus a second independent keeper operator.
-2. Owner-approved auto-close so income can retire the final minimum-debt tranche.
+2. Real pilot accounts: onboard outside businesses that invoice in MUSD, and publish their
+   (anonymized) payment and repayment volume.
 3. Invoice records with partial payments and accounting exports; external audit before mainnet.
 
 ## Known limitations
 
-Testnet only and not audited (self-review only). Partial repayment stops at Mezo's minimum debt, so
-the final close is a manual owner action. The guard reduces liquidation risk but cannot prevent it in
+Testnet only and not audited (self-review only). Partial repayment stops at Mezo's minimum debt; the
+final close happens automatically only if the owner turns auto-close on, and Mezo blocks closing in
+recovery mode. The guard reduces liquidation risk but cannot prevent it in
 a fast price drop, and it only uses pending MUSD and the buffer the owner funds. Scheduled GitHub
 runs can start late. Existing wallet-owned Troves cannot be imported. Payment references are labels,
 not proof of invoices. Real demand is unproven: so far the only payers are our own test wallets.
