@@ -49,4 +49,4 @@ Mezo RePay: ordinary income, all the way to zero debt."
 3. Record with the OS screen recorder (macOS: Shift-Cmd-5 → "Record selected portion") at 1440×900.
 4. Read the script while following the shot list; keep each shot on screen until the line finishes.
 5. Trim to ≤ 2:00 and export 1080p MP4. Upload it yourself and add the link to the submission.
-   A recorded 1:36 walkthrough of the live on-chain flow (synthesized voice) is in `docs/video/mezo-repay-demo.mp4`, with its script in `docs/video/NARRATION.md`.
+   A recorded 1:44 walkthrough of the live on-chain flow (synthesized voice) is in `docs/video/mezo-repay-demo.mp4`, with its script in `docs/video/NARRATION.md`.

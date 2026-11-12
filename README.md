@@ -137,7 +137,7 @@ prevent it in a fast drop, and collateral is never sold to repay. Payment refere
 
 ## Hackathon materials
 
-Demo video (1:36): [docs/video/mezo-repay-demo.mp4](docs/video/mezo-repay-demo.mp4) · [SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
+Demo video (1:44): [docs/video/mezo-repay-demo.mp4](docs/video/mezo-repay-demo.mp4) · [SUBMISSION](docs/SUBMISSION.md) · [PITCH_SCRIPT](docs/PITCH_SCRIPT.md) ·
 deck: [online](https://mezo-repay.vercel.app/deck) / [source](docs/deck/index.html) / [PDF](docs/deck/mezo-repay-deck.pdf)
 
 ## License
