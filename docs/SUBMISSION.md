@@ -139,7 +139,7 @@ hypothesis: we have no paying users yet.
 `docs/video/mezo-repay-demo.mp4` (1:44): the live v3 demo account in the hosted app (customer
 payment split, auto-close progress, the keeper's automatic close, collateral guard, keeper limits,
 payer page) and the keeper's `executeClose` on the Mezo explorer. Narration is synthesized
-speech. Upload it to YouTube or Loom if the form needs a link.
+speech. On YouTube: https://youtu.be/L7duJ84X2h0
 
 ## Technologies
 
