@@ -89,16 +89,17 @@
 
 <section class="slide">
   <div class="eyebrow">5 · Loan safety &amp; security</div>
-  <h2>A collateral guard, and keepers that can't do anything else.</h2>
-  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:34px">
-    <div class="card"><h3 style="color:var(--sage)">Collateral guard (new in v2)</h3><p>Below the owner's trigger ratio, anyone can call <code>protect</code>: pending MUSD repays debt first, then BTC from the owner's buffer goes into the same Trove via <code>addColl</code>. Live: <b class="num">158.2% → 177.4%</b>.</p></div>
+  <h2>Guard the loan, close it from income, and nothing else.</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:34px">
+    <div class="card"><h3 style="color:var(--sage)">Collateral guard</h3><p>Below the owner's trigger ratio, anyone can call <code>protect</code>: pending MUSD repays debt first, then BTC from the owner's buffer goes into the same Trove via <code>addColl</code>. Live: <b class="num">158.2% → 177.4%</b>.</p></div>
+    <div class="card"><h3 style="color:var(--sage)">Auto-close (new in v3)</h3><p>Partial repayment stops at Mezo's minimum debt. With the owner's opt-in, income keeps saving, and once pending covers the payoff the keeper calls <code>executeClose</code>. Live: <b class="num">1,801.80 MUSD</b> burned, <b class="num">0</b> from operating cash.</p></div>
     <div class="card"><h3 class="accent">Keeper cannot</h3><p>Borrow, withdraw collateral, touch operating cash, change owner, policy or guard, pay itself, or send funds anywhere but the account's own Trove.</p></div>
   </div>
-  <p style="margin-top:26px">Admin-less factory · atomic clone init · nonReentrant · 79 Foundry tests incl. permission matrix, fuzz &amp; 7 invariants · 2 fork tests on real Mezo bytecode · Sourcify exact match. Self-review, not an audit.</p>
+  <p style="margin-top:26px">Admin-less factory · atomic clone init · nonReentrant · 89 Foundry tests incl. permission matrix, fuzz &amp; 8 invariants · 3 fork tests on real Mezo bytecode · Sourcify exact match. Self-review, not an audit.</p>
 </section>
 
 <section class="slide">
-  <div class="eyebrow">6 · Working evidence (Mezo testnet, v2)</div>
+  <div class="eyebrow">6 · Working evidence (Mezo testnet, v2 and v3)</div>
   <h2>Real Trove, real payments, real debt reduction.</h2>
   <div class="card" style="margin-top:28px">
     <table>
@@ -106,22 +107,23 @@
       <tr><td>Customer paid 500 + 100 (permit) + 100 MUSD</td><td>30% → repayment</td></tr>
       <tr><td>Keeper repaid, capped by owner policy</td><td>2,202.00 → 2,102.00</td></tr>
       <tr><td>Guard: pending repaid + 0.003 BTC buffer added</td><td>158.2% → 177.4%</td></tr>
-      <tr><td>Owner addColl / withdrawColl · v1 Trove closed</td><td>closeTrove · 1,800.96 burned</td></tr>
+      <tr><td>Keeper auto-close (v3): <code>executeClose</code> from pending only</td><td>1,801.80 burned · 0.045 BTC back</td></tr>
+      <tr><td>Owner addColl / withdrawColl · owner closeLoan (v1, v2)</td><td>closeTrove</td></tr>
       <tr><td>Non-owner setPolicy on-chain</td><td>reverted · NotOwner()</td></tr>
     </table>
   </div>
-  <div class="foot"><span>Factory 0xceb2223F6F81991E671781A77f8f3469d6FDe56b · app mezo-repay.vercel.app</span><span>docs/EVIDENCE.md</span></div>
+  <div class="foot"><span>Factory v3 0x2AF4eB61EFdF3942B71B3f288FB58Cf719087eeb · app mezo-repay.vercel.app</span><span>docs/EVIDENCE.md</span></div>
 </section>
 
 <section class="slide">
   <div class="eyebrow">7 · Revenue model &amp; roadmap</div>
-  <h2>The business pays a small, capped fee only when debt goes down.</h2>
+  <h2>The business pays a small, capped fee only when the loan gets safer or smaller.</h2>
   <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:26px">
     <div class="card"><h3>Repayment fee</h3><p><b class="num">0.25%</b> of each automated repayment, capped at <b class="num">5 MUSD</b>. 150 MUSD repaid → 0.375 MUSD.</p></div>
-    <div class="card"><h3>Guard fee</h3><p><b class="num">0.5%</b> of value moved by <code>protect</code>, capped at <b class="num">10 MUSD</b>. Pays for 24/7 monitoring.</p></div>
+    <div class="card"><h3>Guard fee</h3><p><b class="num">0.5%</b> of value moved by <code>protect</code>, capped at <b class="num">10 MUSD</b>. Auto-close: flat <b class="num">5 MUSD</b> per loan closed.</p></div>
     <div class="card"><h3>Who pays</h3><p>The account owner (the business). Payers pay nothing. Testnet fee is zero; fees are planned, not deployed.</p></div>
   </div>
-  <p style="margin-top:22px;font-size:19px">Why: 10,000 MUSD/month revenue at 30% → ≈7.50 MUSD/month in fees to keep LTV falling and a guard watching the ratio. Next: redundant keepers, owner-approved auto-close, invoice exports, audit before mainnet.</p>
+  <p style="margin-top:22px;font-size:19px">Why: 10,000 MUSD/month revenue at 30% → ≈7.50 MUSD/month in fees to keep LTV falling and a guard watching the ratio. Next: real pilot users, redundant keepers, invoice exports, audit before mainnet.</p>
 </section>
 
 </body>
