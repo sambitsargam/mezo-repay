@@ -16,7 +16,7 @@
 - Pitch deck: https://mezo-repay.vercel.app/deck (PDF: `docs/deck/mezo-repay-deck.pdf`)
 - Code: https://github.com/sambitsargam/mezo-repay
 - Evidence (every transaction, with explorer links): `docs/EVIDENCE.md`
-- Demo video (1:44): `docs/video/mezo-repay-demo.mp4`, or the uploaded link **(fill if the form needs a URL)**
+- Demo video (1:44): https://youtu.be/L7duJ84X2h0 (file: `docs/video/mezo-repay-demo.mp4`)
 
 ## Overview (for the form)
 

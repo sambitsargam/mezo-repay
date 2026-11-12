@@ -1,6 +1,6 @@
 # Demo video narration
 
-Video: [mezo-repay-demo.mp4](mezo-repay-demo.mp4) (1:44, 1080p). A scripted browser session on
+Video: [mezo-repay-demo.mp4](mezo-repay-demo.mp4) (1:44, 1080p), also on YouTube: https://youtu.be/L7duJ84X2h0. A scripted browser session on
 https://mezo-repay.vercel.app, using the read-only live view of the v3 demo account
 `0x3B89a07a950c71c3f6978EDf17270384E2184aAe`, and the Mezo testnet explorer. No transactions are sent
 during the video. Every transaction shown was made earlier and is listed in `docs/EVIDENCE.md`
