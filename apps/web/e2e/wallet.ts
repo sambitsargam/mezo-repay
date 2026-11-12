@@ -73,5 +73,5 @@ export async function injectWallet(page: Page, opts: { address: string; chainId:
 }
 
 export const DEMO_OWNER = "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB";
-export const DEMO_ACCOUNT = "0x97D60Fb479B5E88B2C02A6d97C0d3da9b4A899D7";
+export const DEMO_ACCOUNT = "0x3B89a07a950c71c3f6978EDf17270384E2184aAe";
 export const STRANGER = "0x000000000000000000000000000000000000dEaD";

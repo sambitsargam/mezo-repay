@@ -4,10 +4,11 @@
  *
  *   pnpm --filter @repay/keeper demo <step>
  *   steps: status | fund-gas | create | open | customer-trove | pay | pay-permit | keeper | guard |
- *          fund-buffer | protect | add-collateral | withdraw-collateral | close | withdraw-btc | unauthorized | read
+ *          fund-buffer | protect | auto-close | add-collateral | withdraw-collateral | close | withdraw-btc |
+ *          deposit-capital | unauthorized | read
  *
- * EVIDENCE=v1 targets the first deployment's record (docs/evidence/live-run.json); the default is the
- * current deployment's record (docs/evidence/live-run-v2.json).
+ * EVIDENCE=v1 | v2 targets an earlier deployment's record (docs/evidence/live-run.json,
+ * live-run-v2.json); the default is the current deployment's record (docs/evidence/live-run-v3.json).
  *
  * Uses DEPLOYER_PRIVATE_KEY as the account owner, CUSTOMER_PRIVATE_KEY as a separate payer, and
  * KEEPER_PRIVATE_KEY for permissionless keeper calls.
@@ -46,11 +47,12 @@ import {
   collateralRatio,
 } from "@repay/sdk";
 import { loadDotEnv } from "./config";
-import { errorMessage } from "./keeper";
+import { decide, errorMessage } from "./keeper";
 
 loadDotEnv([resolve(".env"), resolve("../../.env")]);
 const args = process.argv.slice(2).filter((a) => a !== "--");
-const EVIDENCE = resolve(process.env.EVIDENCE === "v1" ? "../../docs/evidence/live-run.json" : "../../docs/evidence/live-run-v2.json");
+const EVIDENCE_FILES: Record<string, string> = { v1: "live-run.json", v2: "live-run-v2.json", v3: "live-run-v3.json" };
+const EVIDENCE = resolve("../../docs/evidence", EVIDENCE_FILES[process.env.EVIDENCE ?? "v3"] ?? EVIDENCE_FILES.v3!);
 const rpc = process.env.MEZO_RPC_URL ?? "https://rpc.test.mezo.org";
 
 const pub = createPublicClient({ chain: mezoTestnet, transport: http(rpc, { retryCount: 3 }) });
@@ -194,6 +196,9 @@ async function snapshotData(account: Address) {
       guard: s.guard.triggerRatio ? `${formatRatio(s.guard.triggerRatio, 0)} → ${formatRatio(s.guard.targetRatio, 0)}` : "off",
       collateralBuffer: formatBtc(s.collateralBuffer),
       btcHeldByAccount: formatBtc(s.btcBalance),
+      autoClose: String(s.autoClose),
+      closeRequired: formatMusd(s.closeRequired, 4),
+      closeStatus: s.closeStatus,
     },
   };
 }
@@ -451,16 +456,39 @@ const steps: Record<string, () => Promise<void>> = {
   },
 
   async keeper() {
-    // One keeper pass for this account, exactly as services/keeper would do it: protect first, then repay.
+    // One keeper pass for this account using the keeper's own decide(): protect, then close, then repay.
     const account = requireAccount();
+    await waitForBlock(lastTxBlock);
     const s = await readAccountSnapshot(pub, account);
-    const fn = s.guardStatus === "Protectable" ? "protect" : s.previewStatus === "Ready" ? "executeRepayment" : null;
-    if (!fn) throw new Error(`nothing to do: guard ${s.guardStatus}, repayment ${s.previewStatus}`);
-    const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: fn, args: [ZERO, ZERO], account: keeperAcct });
-    const hash = await keeperWallet.writeContract(sim.request);
-    const r = await recordTx(fn === "protect" ? "keeper-protect" : "keeper-execute", hash, fn === "protect" ? "Keeper called protect (permissionless)" : "Keeper executed the pending repayment (permissionless, no fee)");
+    const decision = decide(s);
+    if (decision.action === "skip") throw new Error(`nothing to do: guard ${s.guardStatus}, close ${s.closeStatus}, repayment ${s.previewStatus}`);
+    let hash: Hash;
+    if (decision.action === "close") {
+      const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: "executeClose", account: keeperAcct });
+      hash = await keeperWallet.writeContract(sim.request);
+    } else {
+      const fnName = decision.action === "protect" ? "protect" : "executeRepayment";
+      const sim = await pub.simulateContract({ address: account, abi: repayAccountAbi, functionName: fnName, args: [ZERO, ZERO], account: keeperAcct });
+      hash = await keeperWallet.writeContract(sim.request);
+    }
+    const fn = decision.action;
+    const r = await recordTx(
+      fn === "protect" ? "keeper-protect" : fn === "close" ? "keeper-auto-close" : "keeper-execute",
+      hash,
+      fn === "protect" ? "Keeper called protect (permissionless)" : fn === "close" ? "Keeper closed the loan (executeClose)" : "Keeper executed the pending repayment (permissionless, no fee)",
+    );
     const last = ev.steps[ev.steps.length - 1]!;
-    if (fn === "protect") {
+    if (fn === "close") {
+      const ce = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "AutoClosed" })[0]!;
+      const lc = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "LoanClosed" })[0]!;
+      last.summary = `Keeper auto-closed the Trove: repaid ${formatMusd(ce.args.debtRepaid)} from pending only and ${formatBtc(ce.args.collateralReturned)} returned to the account`;
+      last.data = {
+        debtRepaid: formatMusd(ce.args.debtRepaid, 4),
+        fromPending: formatMusd(lc.args.fromPending, 4),
+        fromOperating: formatMusd(lc.args.fromOperating, 4),
+        collateralReturned: formatBtc(ce.args.collateralReturned),
+      };
+    } else if (fn === "protect") {
       const pe = parseEventLogs({ abi: repayAccountAbi, logs: r.logs, eventName: "CollateralProtected" })[0]!;
       last.summary = `Keeper called protect: repaid ${formatMusd(pe.args.repaid)} from pending and added ${formatBtc(pe.args.collateralAdded)} from the buffer`;
       last.data = { ratioBefore: formatRatio(pe.args.ratioBefore, 2), ratioAfter: formatRatio(pe.args.ratioAfter, 2), repaid: formatMusd(pe.args.repaid, 4), collateralAdded: formatBtc(pe.args.collateralAdded) };
@@ -472,6 +500,17 @@ const steps: Record<string, () => Promise<void>> = {
     save();
     const { data } = await snapshotData(account);
     ev.steps.push({ step: `read-after-${last.step}`, type: "read", at: new Date().toISOString(), summary: "Account state after the keeper call", data });
+    save();
+    console.log(data);
+  },
+
+  async "auto-close"() {
+    const account = requireAccount();
+    const on = (args[1] ?? "on") !== "off";
+    const hash = await owner.writeContract({ address: account, abi: repayAccountAbi, functionName: "setAutoClose", args: [on] });
+    await recordTx("owner-set-auto-close", hash, on ? "Owner turned auto-close on: a keeper may close the loan once pending covers the payoff" : "Owner turned auto-close off");
+    const { data } = await snapshotData(account);
+    ev.steps.push({ step: "read-after-auto-close", type: "read", at: new Date().toISOString(), summary: "Auto-close status after the change", data });
     save();
     console.log(data);
   },

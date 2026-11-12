@@ -15,13 +15,13 @@
       "interestRateManager": "0xD4D6c36A592A2c5e86035A6bca1d57747a567f37"
     },
     "repay": {
-      "version": "2",
-      "factory": "0xceb2223F6F81991E671781A77f8f3469d6FDe56b",
-      "implementation": "0xEE5b9ABFd95deb642bc03089b43dA0C5e47D1A56",
-      "deploymentBlock": 16722537,
-      "deploymentTx": "0x11fac633b46ef7a53d6a6e8410981a34bbec57e54953ccb13764c9a704a81bea",
+      "version": "3",
+      "factory": "0x2AF4eB61EFdF3942B71B3f288FB58Cf719087eeb",
+      "implementation": "0xC5FFc26652d6060CC027d770238FBfFF2d6404Fb",
+      "deploymentBlock": 16723420,
+      "deploymentTx": "0x30bfbfb2e482c88b779bf99b652c3f03c87b777e7840d2dc240d1817609c6859",
       "deployer": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB",
-      "sourceCommit": "355ec7ff5d3b93988a8836ec47f64bed562c50a7",
+      "sourceCommit": "c9162621fe45c341664ebcb72fe70dec73139697",
       "compiler": "solc 0.8.24, evm london, optimizer 200 runs",
       "verified": "sourcify-exact-match",
       "deployedAt": "2026-11-12",
@@ -29,11 +29,30 @@
         "sourcify": {
           "factory": "exact_match (creation + runtime)",
           "implementation": "exact_match (runtime; created by factory constructor)",
-          "url": "https://repo.sourcify.dev/31611/0xceb2223F6F81991E671781A77f8f3469d6FDe56b"
+          "url": "https://repo.sourcify.dev/31611/0x2AF4eB61EFdF3942B71B3f288FB58Cf719087eeb"
         }
       }
     },
     "previous": [
+      {
+        "version": "2",
+        "factory": "0xceb2223F6F81991E671781A77f8f3469d6FDe56b",
+        "implementation": "0xEE5b9ABFd95deb642bc03089b43dA0C5e47D1A56",
+        "deploymentBlock": 16722537,
+        "deploymentTx": "0x11fac633b46ef7a53d6a6e8410981a34bbec57e54953ccb13764c9a704a81bea",
+        "deployer": "0x3e5EE5Ac7178cC072A937BbC075226ac10a667cB",
+        "sourceCommit": "355ec7ff5d3b93988a8836ec47f64bed562c50a7",
+        "compiler": "solc 0.8.24, evm london, optimizer 200 runs",
+        "verified": "sourcify-exact-match",
+        "deployedAt": "2026-11-12",
+        "verification": {
+          "sourcify": {
+            "factory": "exact_match (creation + runtime)",
+            "implementation": "exact_match (runtime; created by factory constructor)",
+            "url": "https://repo.sourcify.dev/31611/0xceb2223F6F81991E671781A77f8f3469d6FDe56b"
+          }
+        }
+      },
       {
         "factory": "0xDA44d73B02627CDD3a0D597CdE4E354493c3f61c",
         "implementation": "0x469C9d8Fa5c8c8C8334f39ae2e52064B9e3DA9DA",

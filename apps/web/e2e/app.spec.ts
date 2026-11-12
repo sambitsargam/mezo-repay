@@ -31,6 +31,15 @@ test.describe("example mode", () => {
     await noHorizontalOverflow(page);
   });
 
+  test("loan page explains auto-close with payoff progress", async ({ page }) => {
+    await page.goto("/example/loan");
+    await expect(page.getByRole("heading", { name: "Auto-close" })).toBeVisible();
+    await expect(page.getByText("Saving toward payoff").first()).toBeVisible();
+    await expect(page.getByTestId("payoff-progress")).toHaveText("7.0%");
+    await expect(page.getByRole("button", { name: "Close from pending now" })).toBeDisabled();
+    await noHorizontalOverflow(page);
+  });
+
   for (const path of ["", "/receive", "/policy", "/loan", "/activity", "/automation", "/settings", "/setup"]) {
     test(`renders ${path || "/"} without overflow`, async ({ page }) => {
       await page.goto(`/example${path}`);
@@ -52,18 +61,23 @@ test.describe("live mode without a wallet", () => {
     await page.goto(`/app?view=${DEMO_ACCOUNT}`);
     await expect(page.getByText("Read-only live view")).toBeVisible();
     await expect(page.getByText("Outstanding debt", { exact: false })).toBeVisible();
-    await expect(page.getByText("Loan repayment").first()).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByText(/Loan (opened|closed)|Collateral guard/).first()).toBeVisible({ timeout: 40_000 });
+    await expect(page.getByTestId("overview-auto-close")).toBeVisible();
     await expect(page.locator('a[href*="explorer.test.mezo.org/tx/0x"]').first()).toBeVisible();
     await page.goto(`/app/activity?view=${DEMO_ACCOUNT}`);
     await expect(page.getByText("Customer payment").first()).toBeVisible({ timeout: 40_000 });
-    await expect(page.getByText(/Protected · ratio 158\.\d% → 177\.\d%/)).toBeVisible();
+    await expect(page.getByText("Closed automatically from pending repayment")).toBeVisible();
+    await expect(page.getByText("Auto-close turned on")).toBeVisible();
   });
 
-  test("loan page shows the live collateral guard of the demo account", async ({ page }) => {
+  test("loan page shows the live collateral guard and auto-close of the demo account", async ({ page }) => {
     await page.goto(`/app/loan?view=${DEMO_ACCOUNT}`);
     await expect(page.getByRole("heading", { name: "Collateral guard" })).toBeVisible({ timeout: 40_000 });
-    await expect(page.getByText("170% → 180%")).toBeVisible();
+    await expect(page.getByText("150% → 170%")).toBeVisible();
     await expect(page.getByText("Protected so far")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Auto-close" })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "Saved toward payoff" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Turn auto-close off" })).toBeVisible();
     await noHorizontalOverflow(page);
   });
 
@@ -74,6 +88,7 @@ test.describe("live mode without a wallet", () => {
     expect(body.mode).toBe("live");
     expect(body.keeperAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
     expect(body.accounts).toContain(DEMO_ACCOUNT);
+    expect(body.statuses[DEMO_ACCOUNT].closeStatus).toMatch(/Ready|InsufficientPending|Disabled|Paused|NoActiveLoan/);
     expect(Object.keys(body).join(",")).not.toMatch(/key|secret|private/i);
   });
 

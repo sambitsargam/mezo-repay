@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ArrowRight, QrCode } from "lucide-react";
-import { REPAYMENT_STATUS_COPY, TROVE_STATUS_LABEL, collateralRatio, formatBps, formatRatio } from "@repay/sdk";
+import { REPAYMENT_STATUS_COPY, TROVE_STATUS_LABEL, collateralRatio, formatBps, formatRatio, payoffProgressBps } from "@repay/sdk";
 import { basePath, useMode } from "@/lib/mode";
 import { useActivity, useProtocol, useSelection, useSnapshot } from "@/lib/data";
 import { Gate } from "@/components/Gate";
@@ -154,6 +154,17 @@ function Dashboard() {
               <p className="text-sm text-ink-muted">
                 Repayable before Mezo&apos;s minimum debt: <Amount value={s.maxRepayable} className="font-medium text-ink" />
               </p>
+            )}
+            {hasLoan && s.autoClose && (
+              <div className="rounded-xl border border-line p-3" data-testid="overview-auto-close">
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="text-ink-soft">Auto-close: saved toward payoff</span>
+                  <span className="num font-semibold text-ink">{(payoffProgressBps(s.pendingRepayment, s.closeRequired) / 100).toFixed(1)}%</span>
+                </div>
+                <p className="mt-1 text-xs text-ink-muted">
+                  <Amount value={s.pendingRepayment} /> of <Amount value={s.closeRequired} />. The keeper closes the loan when pending covers it.
+                </p>
+              </div>
             )}
             <div className="mt-auto flex flex-wrap gap-2">
               <Link href={`${base}/automation`} className="btn-secondary min-h-[40px]">

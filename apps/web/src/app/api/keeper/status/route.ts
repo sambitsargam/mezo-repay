@@ -19,6 +19,8 @@ const protectedEv = parseAbiItem(
   "event CollateralProtected(address indexed executor, uint256 ratioBefore, uint256 ratioAfter, uint256 repaid, uint256 collateralAdded)",
 );
 
+const closedEv = parseAbiItem("event AutoClosed(address indexed executor, uint256 debtRepaid, uint256 collateralReturned)");
+
 interface Run {
   status: string;
   conclusion: string | null;
@@ -49,12 +51,13 @@ export async function GET() {
   // Keeper actions on any RePay account, newest first, within a bounded lookback.
   const start = head > LOOKBACK_BLOCKS ? head - LOOKBACK_BLOCKS : 0n;
   const from0 = start > BigInt(d.repay.deploymentBlock) ? start : BigInt(d.repay.deploymentBlock);
-  type Action = { kind: "executed" | "protected"; account: Address; txHash: `0x${string}`; blockNumber: bigint; amount: string };
+  type Action = { kind: "executed" | "protected" | "closed"; account: Address; txHash: `0x${string}`; blockNumber: bigint; amount: string };
   const actions: Action[] = [];
   if (accounts.length) {
     for (let to = head; to >= from0 && actions.length === 0; to -= CHUNK) {
       const from = to - CHUNK + 1n > from0 ? to - CHUNK + 1n : from0;
-      const [r, p] = await Promise.all([
+      const [c, r, p] = await Promise.all([
+        client.getLogs({ address: [...accounts], event: closedEv, args: { executor: keeper.address }, fromBlock: from, toBlock: to }),
         client.getLogs({ address: [...accounts], event: repaid, args: { executor: keeper.address }, fromBlock: from, toBlock: to }),
         client.getLogs({ address: [...accounts], event: protectedEv, args: { executor: keeper.address }, fromBlock: from, toBlock: to }),
       ]);
@@ -64,6 +67,7 @@ export async function GET() {
         if (guardTxs.has(l.transactionHash)) continue;
         actions.push({ kind: "executed", account: getAddress(l.address), txHash: l.transactionHash, blockNumber: l.blockNumber, amount: l.args.amount!.toString() });
       }
+      for (const l of c) actions.push({ kind: "closed", account: getAddress(l.address), txHash: l.transactionHash, blockNumber: l.blockNumber, amount: l.args.debtRepaid!.toString() });
       for (const l of p) actions.push({ kind: "protected", account: getAddress(l.address), txHash: l.transactionHash, blockNumber: l.blockNumber, amount: l.args.repaid!.toString() });
       if (from === from0) break;
     }
@@ -90,6 +94,8 @@ export async function GET() {
           previewAmount: s.previewAmount.toString(),
           guardStatus: s.guardStatus,
           ratio: s.ratio.toString(),
+          closeStatus: s.closeStatus,
+          closeRequired: s.closeRequired.toString(),
           pendingRepayment: s.pendingRepayment.toString(),
           debt: s.debt.toString(),
           checkedAt: lastOk?.updated_at ?? null,

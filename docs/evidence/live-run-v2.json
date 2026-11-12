@@ -275,7 +275,7 @@
         "previewStatus": "Cooldown",
         "previewAmount": "0.00 MUSD",
         "guardStatus": "Protectable",
-        "guard": "170% → 180%",
+        "guard": "170% \u2192 180%",
         "collateralBuffer": "0.000000 BTC",
         "btcHeldByAccount": "0.000000 BTC"
       }
@@ -312,7 +312,7 @@
         "previewStatus": "Cooldown",
         "previewAmount": "0.00 MUSD",
         "guardStatus": "Protectable",
-        "guard": "170% → 180%",
+        "guard": "170% \u2192 180%",
         "collateralBuffer": "0.003000 BTC",
         "btcHeldByAccount": "0.003000 BTC"
       }
@@ -354,7 +354,7 @@
         "previewStatus": "Cooldown",
         "previewAmount": "0.00 MUSD",
         "guardStatus": "Healthy",
-        "guard": "170% → 180%",
+        "guard": "170% \u2192 180%",
         "collateralBuffer": "0.000000 BTC",
         "btcHeldByAccount": "0.000000 BTC"
       }
@@ -421,10 +421,61 @@
         "previewStatus": "Cooldown",
         "previewAmount": "0.00 MUSD",
         "guardStatus": "Healthy",
-        "guard": "170% → 180%",
+        "guard": "170% \u2192 180%",
         "collateralBuffer": "0.000000 BTC",
         "btcHeldByAccount": "0.000000 BTC"
       }
+    },
+    {
+      "step": "owner-close-loan",
+      "type": "transaction",
+      "at": "2026-11-12T00:00:16.672Z",
+      "txHash": "0xcac256f1e89cbe86e779a7bf5613aa6c70f1857cb3b43b7fed702dd40e6f6285",
+      "explorer": "https://explorer.test.mezo.org/tx/0xcac256f1e89cbe86e779a7bf5613aa6c70f1857cb3b43b7fed702dd40e6f6285",
+      "blockNumber": "16723404",
+      "status": "success",
+      "summary": "Owner closed the account's Trove (BorrowerOperations.closeTrove); pending repayment used first, then operating cash",
+      "data": {
+        "debtRepaid": "1,800.0021 MUSD",
+        "fromPending": "7.9998 MUSD",
+        "fromOperating": "1,792.0022 MUSD",
+        "collateralReturned": "0.048000 BTC"
+      }
+    },
+    {
+      "step": "read-after-close",
+      "type": "read",
+      "at": "2026-11-12T00:00:17.225Z",
+      "summary": "Account state after closing the loan",
+      "data": {
+        "loanStatus": "closedByOwner",
+        "debt": "0.0000 MUSD",
+        "collateral": "0.000000 BTC",
+        "pendingRepayment": "0.00 MUSD",
+        "operatingCash": "697.99 MUSD",
+        "btcHeldByAccount": "0.048000 BTC"
+      }
+    },
+    {
+      "step": "owner-withdraw-btc",
+      "type": "transaction",
+      "at": "2026-11-12T00:00:29.964Z",
+      "txHash": "0x1a0ca762807a9213e5af42355bdaee2e2ae6a042c6651241417b9b0421d5911e",
+      "explorer": "https://explorer.test.mezo.org/tx/0x1a0ca762807a9213e5af42355bdaee2e2ae6a042c6651241417b9b0421d5911e",
+      "blockNumber": "16723407",
+      "status": "success",
+      "summary": "Owner withdrew 0.048000 BTC (returned collateral) from the account to the owner wallet",
+      "data": {}
+    },
+    {
+      "step": "owner-withdraw-operating",
+      "type": "transaction",
+      "at": "2026-11-12T00:00:53.000Z",
+      "txHash": "0x8042b8d4ca7e32e8c315333c84fb714a7a47f262a1478a137942e0c5e8e05222",
+      "explorer": "https://explorer.test.mezo.org/tx/0x8042b8d4ca7e32e8c315333c84fb714a7a47f262a1478a137942e0c5e8e05222",
+      "status": "success",
+      "summary": "Owner withdrew the remaining 697.99 MUSD operating cash to the owner wallet after closing the v2 Trove",
+      "blockNumber": "16723414"
     }
   ]
 }
